@@ -62,6 +62,54 @@ export const geminiService = {
     }
   },
 
+  verifyHeartPhoto: async (imageBase64: string, mimeType: string): Promise<{ pass: boolean; participantCount: number; message: string; score: number }> => {
+    try {
+      const prompt = `이 사진을 분석해주세요. 다음 기준으로 평가합니다:
+
+1. 야외(실외)에서 촬영되었는가?
+2. 사람들이 **몸(팔, 다리, 전신)**으로 하트(♡) 모양을 만들고 있는가?
+3. 하트 제작에 직접 참여한 사람 수는 몇 명인가?
+
+주의사항:
+- 손가락 하트는 인정하지 않습니다. 반드시 몸(팔, 전신)으로 만든 하트여야 합니다.
+- 실내 촬영은 불통과입니다.
+- 소품으로 만든 하트는 불통과입니다.
+- 하트 제작에 직접 참여한 인원만 카운트합니다 (옆에 서있기만 한 사람 제외).
+
+점수 기준:
+- 2명 이하: 불통과 (score: 0)
+- 3명: score 60
+- 4명: score 70
+- 5명: score 80
+- 6명 이상: score 100
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{"pass": true/false, "participantCount": 숫자, "message": "설명", "score": 0-100}`;
+
+      const result = await callGemini(FLASH_MODEL, [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data: imageBase64 } },
+          { text: prompt },
+        ],
+      }]);
+      const text = extractText(result);
+      const json = text.match(/\{[\s\S]*\}/);
+      if (json) {
+        const parsed = JSON.parse(json[0]);
+        return {
+          pass: parsed.pass || false,
+          participantCount: Number(parsed.participantCount) || 0,
+          message: parsed.message || '',
+          score: Number(parsed.score) || 0,
+        };
+      }
+      return { pass: false, participantCount: 0, message: '분석 결과를 파싱할 수 없습니다.', score: 0 };
+    } catch (error) {
+      return { pass: false, participantCount: 0, message: `사진 분석 오류: ${error}`, score: 0 };
+    }
+  },
+
   verifyPlantInPhoto: async (imageBase64: string, mimeType: string): Promise<{ pass: boolean; message: string }> => {
     try {
       const result = await callGemini(FLASH_MODEL, [{
