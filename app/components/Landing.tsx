@@ -15,7 +15,8 @@ interface LandingProps {
   onIndustryTypeChange: (type: IndustryType) => void;
 }
 
-export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, roomId, onRoomIdChange, industryType }: LandingProps) {
+export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, roomId, onRoomIdChange, industryType, onIndustryTypeChange: _onIndustryTypeChange }: LandingProps) {
+  void _onIndustryTypeChange; // reserved for future use
   const [phase, setPhase] = useState<'intro' | 'register' | 'admin-login'>('intro');
   const [teamId, setTeamId] = useState('1');
   const [teamName, setTeamName] = useState('');

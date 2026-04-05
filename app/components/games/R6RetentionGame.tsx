@@ -14,7 +14,6 @@ type Phase = 'intro' | 'playing' | 'result';
 export default function R6RetentionGame({ onComplete, onBack, startTime }: Props) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [checked, setChecked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -91,7 +90,6 @@ export default function R6RetentionGame({ onComplete, onBack, startTime }: Props
       });
     });
     setCorrectCount(correct);
-    setChecked(true);
     setPhase('result');
     // Stop music
     if (audioRef.current) {

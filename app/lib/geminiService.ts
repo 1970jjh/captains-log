@@ -27,6 +27,48 @@ function extractText(result: unknown): string {
 }
 
 export const geminiService = {
+  // 범용 역할 기반 채팅 (R3 면담 등에서 사용)
+  chatWithRole: async (
+    systemPrompt: string,
+    conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+    userMessage: string,
+    evalInstruction: string
+  ): Promise<{
+    response: string;
+    satisfactionScore: number;
+    moodLevel: number;
+    conversationEnded: boolean;
+    evaluationScores: Record<string, number>;
+  }> => {
+    try {
+      const contents = [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: '네, 알겠습니다. 해당 역할로 대화하겠습니다.' }] },
+        ...conversationHistory.map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }],
+        })),
+        { role: 'user', parts: [{ text: userMessage + '\n\n' + evalInstruction }] },
+      ];
+      const result = await callGemini(FLASH_MODEL, contents);
+      const text = extractText(result);
+      const json = text.match(/\{[\s\S]*\}/);
+      if (json) {
+        const parsed = JSON.parse(json[0]);
+        return {
+          response: parsed.response || text,
+          satisfactionScore: parsed.satisfactionScore || 0,
+          moodLevel: parsed.moodLevel || 1,
+          conversationEnded: parsed.conversationEnded || false,
+          evaluationScores: parsed.evaluationScores || {},
+        };
+      }
+      return { response: text, satisfactionScore: 0, moodLevel: 1, conversationEnded: false, evaluationScores: {} };
+    } catch (error) {
+      return { response: `오류 발생: ${error}`, satisfactionScore: 0, moodLevel: 1, conversationEnded: false, evaluationScores: {} };
+    }
+  },
+
   evaluateInaugural: async (speech: string): Promise<{ score: number; feedback: string; strengths: string[]; improvements: string[] }> => {
     try {
       const prompt = `당신은 리더십 교육 전문가입니다. 신임 팀장이 작성한 부임 인사를 아래 5가지 기준으로 평가해주세요.

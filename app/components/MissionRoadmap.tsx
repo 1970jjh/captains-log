@@ -380,9 +380,12 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
             <p className="text-cl-text/60 font-[family-name:var(--font-mono)] text-sm">
               TOTAL SCORE: <strong className="text-cl-navy text-xl">{teamData.totalScore}</strong> / 1,200
             </p>
-            <p className="text-cl-text/40 text-xs mt-2">
+            <p className="text-cl-text/40 text-xs mt-2 mb-4">
               축하합니다! 12개월의 리더십 여정을 성공적으로 완수했습니다! 🏆
             </p>
+            <button onClick={onBackToLanding} className="nb-btn px-6 py-2 bg-cl-navy text-white text-sm">
+              처음으로 돌아가기
+            </button>
           </div>
         )}
       </div>

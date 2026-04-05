@@ -68,44 +68,14 @@ export default function R3MeetingGame({ onComplete, onBack, startTime }: Props) 
     setChatHistory(newHistory);
 
     try {
-      const systemPrompt = `${selectedMember.aiPrompt}
+      const systemPrompt = `${selectedMember.aiPrompt}\n\n면담 목표: ${selectedMember.meetingGoal}\n\n자연스러운 한국어로 감정을 실어 대화하세요.\n리더의 공감, 경청, 해결 의지에 따라 당신의 마음이 점차 열립니다.\n형식적이거나 무성의한 응대에는 더 벽을 세웁니다.\n최소 5턴 이상 대화를 이어가세요.`;
 
-면담 목표: ${selectedMember.meetingGoal}
+      const evalInstruction = '[시스템: 위 메시지에 대해 팀원 역할로 응답하고, JSON으로 현재 평가를 첨부하세요. 형식: {"response":"응답","satisfactionScore":0-100,"moodLevel":1-5,"conversationEnded":false,"evaluationScores":{"empathy":0-100,"listening":0-100,"coaching":0-100,"solution":0-100,"motivation":0-100,"trust":0-100,"communication":0-100,"decisiveness":0-100,"delegation":0-100,"vision":0-100}}]';
 
-자연스러운 한국어로 감정을 실어 대화하세요.
-리더의 공감, 경청, 해결 의지에 따라 당신의 마음이 점차 열립니다.
-형식적이거나 무성의한 응대에는 더 벽을 세웁니다.
-최소 5턴 이상 대화를 이어가세요.`;
-
-      const contents = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: '네, 알겠습니다. 해당 팀원 역할로 면담에 임하겠습니다.' }] },
-        ...newHistory.map(m => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }],
-        })),
-        { role: 'user', parts: [{ text: msg + '\n\n[시스템: 위 메시지에 대해 팀원 역할로 응답하고, JSON으로 현재 평가를 첨부하세요. 형식: {"response":"응답","satisfactionScore":0-100,"moodLevel":1-5,"conversationEnded":false,"evaluationScores":{"empathy":0-100,"listening":0-100,"coaching":0-100,"solution":0-100,"motivation":0-100,"trust":0-100,"communication":0-100,"decisiveness":0-100,"delegation":0-100,"vision":0-100}}]' }] },
-      ];
-
-      const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents }),
-      });
-      const result = await response.json();
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const json = text.match(/\{[\s\S]*\}/);
-
-      if (json) {
-        const parsed = JSON.parse(json[0]);
-        setChatHistory([...newHistory, { role: 'assistant', content: parsed.response || text }]);
-        setScore(parsed.satisfactionScore || 0);
-        setEvalScores(parsed.evaluationScores || {});
-      } else {
-        setChatHistory([...newHistory, { role: 'assistant', content: text }]);
-      }
+      const result = await geminiService.chatWithRole(systemPrompt, newHistory, msg, evalInstruction);
+      setChatHistory([...newHistory, { role: 'assistant', content: result.response }]);
+      setScore(result.satisfactionScore);
+      setEvalScores(result.evaluationScores);
     } catch (error) {
       setChatHistory([...newHistory, { role: 'assistant', content: `오류 발생: ${error}` }]);
     }
