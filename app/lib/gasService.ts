@@ -8,7 +8,7 @@ interface GasResponse {
 }
 
 async function postToGas(payload: Record<string, unknown>): Promise<GasResponse> {
-  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') {
+  if (!GAS_URL) {
     return { success: false, error: 'GAS_URL not configured' };
   }
   try {
@@ -27,7 +27,7 @@ async function postToGas(payload: Record<string, unknown>): Promise<GasResponse>
 }
 
 async function getFromGas(params: Record<string, string>): Promise<GasResponse> {
-  if (!GAS_URL || GAS_URL === 'YOUR_GAS_URL_HERE') {
+  if (!GAS_URL) {
     return { success: false, error: 'GAS_URL not configured' };
   }
   try {
