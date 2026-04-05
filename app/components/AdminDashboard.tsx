@@ -41,7 +41,8 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
   const [activeEventType, setActiveEventType] = useState<EventType | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<TeamRow | null>(null);
-  const [roomId, setRoomId] = useState('room-default');
+  const [roomId, setRoomId] = useState(''); // 활성화된 방 (빈 문자열 = 아직 선택 안 됨)
+  const [newRoomName, setNewRoomName] = useState(''); // 새 방 이름 입력용
   const [eventTarget, setEventTarget] = useState<string>('all');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [gameStartTime, setGameStartTime] = useState<string | null>(null);
@@ -50,7 +51,9 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
   const [eventRemaining, setEventRemaining] = useState<number>(0);
   const [roomList, setRoomList] = useState<string[]>([]);
 
+  // roomId가 설정된 경우에만 데이터 fetch (빈 문자열이면 fetch 안 함)
   const fetchData = useCallback(async () => {
+    if (!roomId) { setLoading(false); return; }
     try {
       const [teamsResult, stateResult] = await Promise.all([
         gasService.getAllTeams(roomId),
@@ -103,19 +106,28 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
           if (item && typeof item === 'object' && 'roomId' in item) return String((item as { roomId: string }).roomId);
           return '';
         }).filter(Boolean);
-        setRoomList([...new Set(roomIds)]);
+        const unique = [...new Set(roomIds)];
+        setRoomList(unique);
+        // 방이 있고 아직 선택 안 된 경우 첫 번째 방 자동 선택
+        if (unique.length > 0 && !roomId) {
+          setRoomId(unique[0]);
+        }
       }
     } catch {
       // non-critical
     }
-  }, []);
+  }, [roomId]);
 
   useEffect(() => {
-    fetchData();
     fetchRoomList();
+  }, [fetchRoomList]);
+
+  useEffect(() => {
+    if (!roomId) return;
+    fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [fetchData, fetchRoomList]);
+  }, [fetchData, roomId]);
 
   useEffect(() => {
     if (!gameStarted || !gameStartTime) {
@@ -131,10 +143,16 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
     return () => clearInterval(interval);
   }, [gameStarted, gameStartTime]);
 
-  const handleStartGame = async () => {
-    await gasService.startGame(roomId, timerMinutes);
+  const handleCreateAndStartGame = async () => {
+    const targetRoom = newRoomName.trim() || roomId;
+    if (!targetRoom) return;
+    await gasService.startGame(targetRoom, timerMinutes);
+    setRoomId(targetRoom);
+    setNewRoomName('');
     setGameStarted(true);
     setGameStartTime(new Date().toISOString());
+    // 방 목록 갱신
+    setTimeout(fetchRoomList, 1000);
   };
 
   const handleStopGame = async () => {
@@ -250,14 +268,30 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
         {/* ===== GAME CONTROL ===== */}
         <div className="nb-card p-5">
           <h2 className="text-xs font-black text-cl-text/60 font-mono uppercase tracking-widest mb-4">&#9881;&#65039; GAME CONTROL</h2>
+
+          {/* 현재 활성 방 표시 */}
+          {roomId && (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-xs text-cl-text/40 font-mono">현재 방:</span>
+              <span className="nb-badge bg-cl-navy text-white border-cl-navy text-sm px-3 py-1">{roomId}</span>
+              {gameStarted && <span className="nb-badge bg-cl-green text-white border-cl-green text-[10px] animate-pulse">LIVE</span>}
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-4 items-end">
             <div>
-              <label className="text-[10px] text-cl-text/40 font-mono mb-1 block font-bold uppercase">Room ID</label>
-              <input type="text" value={roomId} onChange={e => setRoomId(e.target.value)} className="nb-input w-44 py-2 text-sm" />
+              <label className="text-[10px] text-cl-text/40 font-mono mb-1 block font-bold uppercase">ROOM CREATE</label>
+              <input
+                type="text"
+                value={newRoomName}
+                onChange={e => setNewRoomName(e.target.value)}
+                placeholder="새 방 이름 입력"
+                className="nb-input w-48 py-2 text-sm"
+              />
             </div>
             <div>
-              <label className="text-[10px] text-cl-text/40 font-mono mb-1 block font-bold uppercase">Industry / Theme</label>
-              <select value={industryType} onChange={e => onIndustryTypeChange(Number(e.target.value) as IndustryType)} className="nb-input w-44 py-2 text-sm">
+              <label className="text-[10px] text-cl-text/40 font-mono mb-1 block font-bold uppercase">Theme</label>
+              <select value={industryType} onChange={e => onIndustryTypeChange(Number(e.target.value) as IndustryType)} className="nb-input w-40 py-2 text-sm">
                 {Object.entries(IndustryTypeLabels).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
                 ))}
@@ -268,7 +302,11 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
               <input type="number" value={timerMinutes} onChange={e => setTimerMinutes(Number(e.target.value))} className="nb-input w-24 py-2 text-sm" />
             </div>
             {!gameStarted ? (
-              <button onClick={handleStartGame} className="nb-btn px-8 py-2.5 bg-cl-green text-cl-text text-sm">
+              <button
+                onClick={handleCreateAndStartGame}
+                disabled={!newRoomName.trim() && !roomId}
+                className="nb-btn px-8 py-2.5 bg-cl-green text-cl-text text-sm disabled:opacity-40"
+              >
                 &#9654; START GAME
               </button>
             ) : (
@@ -280,6 +318,10 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
               &#128260; REFRESH
             </button>
           </div>
+
+          {!newRoomName.trim() && !roomId && (
+            <p className="text-[10px] text-cl-red mt-2 font-mono">* 새 방 이름을 입력하고 START GAME을 클릭하세요</p>
+          )}
         </div>
 
         {/* ===== ROOM LIST ===== */}
