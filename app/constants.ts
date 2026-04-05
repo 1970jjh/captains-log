@@ -17,7 +17,7 @@ export const MISSIONS: MissionConfig[] = [
   { id: 3, month: '3월', title: '팀원 1:1 면담', score: 65, timeLimit: 5, timeBonus: 10, story: '흩어진 팀원들의 연락처를 추적하라' },
   { id: 4, month: '4월', title: '업무 배분 회의', score: 75, timeLimit: 7, timeBonus: 15, story: '업무 분장표의 오류를 찾아 수정하라' },
   { id: 5, month: '5월', title: '팀빌딩 워크숍', score: 80, timeLimit: 10, timeBonus: 15, story: '자연 속 원팀 인증샷을 찍어라!' },
-  { id: 6, month: '6월', title: '핵심 인재 리텐션', score: 70, timeLimit: 7, timeBonus: 15, story: '이직 고민 중인 핵심 인재의 진심을 파악하라' },
+  { id: 6, month: '6월', title: '팀장의 역할 점검', score: 70, timeLimit: 10, timeBonus: 15, story: '노래 속에 숨겨진 리더의 12가지 역할 키워드를 찾아라' },
   { id: 7, month: '7월', title: '성과 면담', score: 90, timeLimit: 7, timeBonus: 15, story: '팀원의 말 속 숨겨진 진짜 메시지를 읽어내라' },
   { id: 8, month: '8월', title: '숨은 역량 발견', score: 70, timeLimit: 7, timeBonus: 15, story: '조용한 팀원의 특별한 재능을 밝혀내라' },
   { id: 9, month: '9월', title: '돌발 위기 대응', score: 110, timeLimit: 10, timeBonus: 20, story: '골든타임 4분! 동료의 생명을 구하라' },
@@ -209,13 +209,74 @@ export const R5_CLEAR_MESSAGE = `하나의 하트가 완성되었습니다.
 "좋은 팀은 성과로 기억되지만, 위대한 팀은 관계로 기억됩니다."
 오늘의 하트가, 앞으로 12개월의 여정을 지탱할 심장이 되길 바랍니다.`;
 
-export const R6_STORY = `팀빌딩 워크숍의 훈훈함도 잠시, 충격적인 소식이 들려온다.
-팀 내 핵심 인재가 헤드헌터의 연락을 받고 이직을 심각하게 고민 중이라는 것!
-그가 떠나면 프로젝트는 좌초된다. 하지만 직접 물어봐선 역효과.
-강의장 곳곳에 숨겨진 6장의 단서 카드를 찾아 사진으로 기록하고,
-그가 진짜로 원하는 것(보상? 성장? 인정? 워라밸?)을 파악해 리텐션 전략의 핵심 키워드를 밝혀내라!`;
-export const R6_CORRECT_ANSWER = 'BERLIN';
-export const R6_MISSION_IMAGE = 'https://i.ibb.co/GfD5Qy0r/6mission.jpg';
+export const R6_STORY = `어느덧 6개월. 취임사로 시작해, 팀의 상처를 진단하고, 면담으로 마음을 열고,
+이상과 현실의 간극을 눈으로 확인하고, 밖으로 나가 하나의 하트를 만들었다.
+
+숨 가쁘게 달려온 반년이었다.
+
+오늘, 당신은 잠시 걸음을 멈추고 물었다.
+"나는... 팀장으로서 잘 하고 있는 걸까?"
+
+화려한 전략도, 완벽한 실행력도 중요하지만 —
+진짜 좋은 리더는 자기 자신을 점검할 줄 아는 사람이다.
+
+팀 리더에게는 12가지 역할이 있다. 어느 것 하나 소홀해선 안 된다.
+지금부터 당신의 항해일지(Captain's Log) 테마송을 들으며,
+노래 가사 속에 숨겨진 리더의 키워드를 찾아 빈칸을 채워라.
+가사를 채우는 것은 곧, 당신의 리더십을 다시 한 번 새기는 일이다.`;
+export const R6_MISSION_IMAGE = '/images/mission6.jpg';
+export const R6_SONG_URL = '/audio/captain-log-song.mp3';
+export const R6_CLEAR_MESSAGE = `6개월간의 여정을 노래 한 곡에 담아 되돌아보았습니다.
+
+12가지 중 완벽한 리더는 없습니다.
+하지만 자신의 부족함을 아는 리더는 반드시 성장합니다.
+오늘 채우지 못한 빈칸이 있다면, 그것이 바로 당신이 다음 6개월간 채워나갈 숙제입니다.`;
+
+export const R6_LEADER_ROLES = [
+  { icon: '🔭', role: '비전 제시자', desc: '"우리가 왜 이 일을 하는가" 방향성 제시' },
+  { icon: '📋', role: '목표 설정자', desc: '실행 가능한 구체적 목표와 로드맵' },
+  { icon: '⚖️', role: '업무 조율자', desc: '강점 기반 업무 분배와 자원 지원' },
+  { icon: '🔗', role: '소통 연결고리', desc: '정보 격차 해소, 투명한 공유' },
+  { icon: '🔥', role: '동기 부여가', desc: '인정과 칭찬으로 긍정적 분위기' },
+  { icon: '🌱', role: '성장 코치', desc: '질문과 피드백으로 스스로 성장' },
+  { icon: '🤝', role: '갈등 중재자', desc: '객관적 타협점, 감정싸움 방지' },
+  { icon: '🔧', role: '문제 해결사', desc: '앞장서는 결단력과 해결책' },
+  { icon: '📊', role: '성과 관리자', desc: '데이터 기반 공정한 평가' },
+  { icon: '🌊', role: '변화 주도자', desc: '저항 최소화, 유연한 적응' },
+  { icon: '🛡️', role: '리스크 관리자', desc: '잠재 위험 사전 파악, Plan B' },
+  { icon: '⭐', role: '롤모델', desc: '언행일치, 솔선수범' },
+];
+
+// 가사 빈칸 데이터: { line: 표시 텍스트, blanks: [{hint: 초성, answer: 정답}] }
+export const R6_LYRICS: Array<{ line: string; blanks: Array<{ hint: string; answer: string }> }> = [
+  { line: '갑작스러운 발령, 낯선 내 이름표 뒤에 붙은 ({0})', blanks: [{ hint: 'ㅌㅈ', answer: '팀장' }] },
+  { line: '다섯 개의 시선이 나를 시험해, 12개월의 서바이벌', blanks: [] },
+  { line: '아이를 기다리는 그녀, ({0}) 닫은 선배, 길 잃은 ({1})까지', blanks: [{ hint: 'ㅁㅇ', answer: '마음' }, { hint: 'ㅁㅈㅇ', answer: '문제아' }] },
+  { line: '이 서툰 ({0})를 지휘해야 해', blanks: [{ hint: 'ㅇㅋㅅㅌㄹ', answer: '오케스트라' }] },
+  { line: '', blanks: [] },
+  { line: '({0}) 속에 적어 내려가는 리더의 온도', blanks: [{ hint: 'ㅎㅎㅇㅈ', answer: '항해일지' }] },
+  { line: '명확한 ({0})을 세우고, ({1})을 계획하는 밤', blanks: [{ hint: 'ㅂㅈ', answer: '비전' }, { hint: 'ㄴㅇ', answer: '내일' }] },
+  { line: '서로의 역할을 ({0})하고, 작은 목소리도 ({1})해', blanks: [{ hint: 'ㅈㅇ', answer: '조율' }, { hint: 'ㅅㅌ', answer: '소통' }] },
+  { line: '우린 다시 시작할 수 있어, 기분 좋은 ({0})', blanks: [{ hint: 'ㄷㄱㅂㅇ', answer: '동기부여' }] },
+  { line: '', blanks: [] },
+  { line: '스스로 답을 찾게 돕는 ({0})가 되어줄게', blanks: [{ hint: 'ㅋㅊ', answer: '코치' }] },
+  { line: '엉킨 실타래 같은 갈등은 내가 ({0})할게', blanks: [{ hint: 'ㅈㅈ', answer: '중재' }] },
+  { line: '막막한 고립 속에서 ({0})의 빛을 비추고', blanks: [{ hint: 'ㅁㅈㅎㄱ', answer: '문제해결' }] },
+  { line: '차갑게 ({0})를 관리해도 ({1})만은 따뜻하게', blanks: [{ hint: 'ㅅㄱ', answer: '성과' }, { hint: 'ㅁㅇ', answer: '마음' }] },
+  { line: '', blanks: [] },
+  { line: '밀려오는 ({0})를 즐기며, ({1})를 넘어', blanks: [{ hint: 'ㅂㅎ', answer: '변화' }, { hint: 'ㄹㅅㅋ', answer: '리스크' }] },
+  { line: '내가 꿈꾸던 ({0})의 모습으로 서 있을게', blanks: [{ hint: 'ㄹㅁㄷ', answer: '롤모델' }] },
+  { line: '함께라면 저 높은 ({0})도 멀지 않아', blanks: [{ hint: 'ㅁㅍ', answer: '목표' }] },
+  { line: '', blanks: [] },
+  { line: '({0}) 속에 적어 내려가는 리더의 온도', blanks: [{ hint: 'ㅎㅎㅇㅈ', answer: '항해일지' }] },
+  { line: '명확한 ({0})을 세우고, ({1})을 계획하는 밤', blanks: [{ hint: 'ㅂㅈ', answer: '비전' }, { hint: 'ㄴㅇ', answer: '내일' }] },
+  { line: '서로의 역할을 ({0})하고, 작은 목소리도 ({1})해', blanks: [{ hint: 'ㅈㅇ', answer: '조율' }, { hint: 'ㅅㅌ', answer: '소통' }] },
+  { line: '우린 다시 시작할 수 있어, 기분 좋은 ({0})', blanks: [{ hint: 'ㄷㄱㅂㅇ', answer: '동기부여' }] },
+  { line: '', blanks: [] },
+  { line: '창밖의 불빛처럼 빛나는 ({0})의 성과', blanks: [{ hint: 'ㅇㄹ', answer: '우리' }] },
+  { line: '마지막 일지엔 ({0})만 남길게', blanks: [{ hint: 'ㅇㅇ', answer: '웃음' }] },
+  { line: 'Stay with me, Captain.', blanks: [] },
+];
 
 export const R7_STORY = `핵심 인재 리텐션에 성공하며 위기를 넘긴 7월, 상반기 성과 면담 시즌이 돌아왔다.
 하지만 단순히 "수고했다"는 말로는 부족하다.
