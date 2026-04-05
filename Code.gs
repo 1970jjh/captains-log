@@ -2,115 +2,46 @@
  * CAPTAIN'S LOG - Google Apps Script Backend
  * Google Sheet ID: 1PjO6J3UX86W61bDTlot784UXWS0HUca6Gnoi0SYy-aM
  *
+ * 방(Room)별 시트 구조:
+ *   Teams_{roomId}     : 팀 등록/점수/상태
+ *   Events_{roomId}    : 이벤트 관리
+ *   GameState_{roomId} : 게임 상태
+ *
+ * 최대 25팀/방, 동시 10개 방 지원
+ *
  * 배포 방법:
- * 1. Google Sheet 열기 → 확장 프로그램 → Apps Script
+ * 1. Google Sheet → 확장 프로그램 → Apps Script
  * 2. 이 코드를 Code.gs에 붙여넣기
  * 3. 배포 → 새 배포 → 웹 앱 → 누구나 액세스 가능
- * 4. 배포 URL을 captains-log/app/lib/gasService.ts의 GAS_URL에 입력
+ * 4. 배포 URL을 app/lib/gasService.ts의 GAS_URL에 입력
  */
 
-const SPREADSHEET_ID = '1PjO6J3UX86W61bDTlot784UXWS0HUca6Gnoi0SYy-aM';
-
-function getSpreadsheet() {
-  return SpreadsheetApp.openById(SPREADSHEET_ID);
-}
-
-// 시트 생성 (쓰기 작업용)
-function getOrCreateSheet(name) {
-  const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-  }
-  return sheet;
-}
-
-// 시트 조회 전용 (없으면 null 반환, 절대 생성 안 함)
-function getSheetIfExists(name) {
-  const ss = getSpreadsheet();
-  return ss.getSheetByName(name);
-}
-
-// ==========================================
-// TEAM SHEET STRUCTURE (34 columns)
-// ==========================================
-// A: teamId, B: teamName, C: members, D: roles, E: industryType
-// F: currentMonth, G: totalScore, H: timeBonus, I: status, J: registeredAt
-// K: r1Score, L: r1Time, M: r2Score, N: r2Time, O: r3Score, P: r3Time
-// Q: r4Score, R: r4Time, S: r5Score, T: r5Time, U: r6Score, V: r6Time
-// W: r7Score, X: r7Time, Y: r8Score, Z: r8Time, AA: r9Score, AB: r9Time
-// AC: r10Score, AD: r10Time, AE: r11Score, AF: r11Time, AG: r12Score, AH: r12Time
-
-// 쓰기용 (시트 없으면 생성)
-function getTeamsSheet(roomId) {
-  return getOrCreateSheet('Teams_' + roomId);
-}
-
-function getEventsSheet(roomId) {
-  return getOrCreateSheet('Events_' + roomId);
-}
-
-function getGameStateSheet(roomId) {
-  return getOrCreateSheet('GameState_' + roomId);
-}
-
-// 읽기용 (시트 없으면 null)
-function getTeamsSheetReadOnly(roomId) {
-  return getSheetIfExists('Teams_' + roomId);
-}
-
-function getEventsSheetReadOnly(roomId) {
-  return getSheetIfExists('Events_' + roomId);
-}
-
-function getGameStateSheetReadOnly(roomId) {
-  return getSheetIfExists('GameState_' + roomId);
-}
-
-function findTeamRow(sheet, teamId) {
-  const data = sheet.getDataRange().getValues();
-  for (let i = 0; i < data.length; i++) {
-    if (String(data[i][0]) === String(teamId)) {
-      return i + 1; // 1-based row
-    }
-  }
-  return -1;
-}
+var SPREADSHEET_ID = '1PjO6J3UX86W61bDTlot784UXWS0HUca6Gnoi0SYy-aM';
 
 // ==========================================
 // POST HANDLER
 // ==========================================
 function doPost(e) {
   try {
-    const payload = JSON.parse(e.postData.contents);
-    const action = payload.action;
+    var data = JSON.parse(e.postData.contents);
+    var action = data.action;
 
     switch (action) {
-      case 'registerTeam':
-        return registerTeam(payload);
-      case 'updateScore':
-        return updateScore(payload);
-      case 'updateMonth':
-        return updateMonth(payload);
-      case 'updateTotal':
-        return updateTotal(payload);
-      case 'updateStatus':
-        return updateStatus(payload);
-      case 'createEvent':
-        return createEvent(payload);
-      case 'clearEvent':
-        return clearEvent(payload);
-      case 'startGame':
-        return startGame(payload);
-      case 'stopGame':
-        return stopGame(payload);
-      case 'deleteRoom':
-        return deleteRoom(payload);
+      case 'registerTeam':   return handleRegisterTeam(data);
+      case 'updateScore':    return handleUpdateScore(data);
+      case 'updateMonth':    return handleUpdateMonth(data);
+      case 'updateTotal':    return handleUpdateTotal(data);
+      case 'updateStatus':   return handleUpdateStatus(data);
+      case 'createEvent':    return handleCreateEvent(data);
+      case 'clearEvent':     return handleClearEvent(data);
+      case 'startGame':      return handleStartGame(data);
+      case 'stopGame':       return handleStopGame(data);
+      case 'deleteRoom':     return handleDeleteRoom(data);
       default:
         return jsonResponse({ success: false, error: 'Unknown action: ' + action });
     }
-  } catch (err) {
-    return jsonResponse({ success: false, error: String(err) });
+  } catch (error) {
+    return jsonResponse({ success: false, error: error.toString() });
   }
 }
 
@@ -119,41 +50,49 @@ function doPost(e) {
 // ==========================================
 function doGet(e) {
   try {
-    const action = e.parameter.action;
+    var action = e.parameter.action;
+    var roomId = e.parameter.roomId || '';
 
     switch (action) {
-      case 'getEvent':
-        return getEvent(e.parameter);
-      case 'getGameState':
-        return getGameState(e.parameter);
-      case 'getAllTeams':
-        return getAllTeams(e.parameter);
-      case 'listRooms':
-        return listRooms();
+      case 'getEvent':     return handleGetEvent(roomId);
+      case 'getGameState': return handleGetGameState(roomId);
+      case 'getAllTeams':   return handleGetAllTeams(roomId);
+      case 'listRooms':    return handleListRooms();
       default:
         return jsonResponse({ success: false, error: 'Unknown action: ' + action });
     }
-  } catch (err) {
-    return jsonResponse({ success: false, error: String(err) });
+  } catch (error) {
+    return jsonResponse({ success: false, error: error.toString() });
   }
 }
 
 // ==========================================
-// TEAM OPERATIONS
+// TEAM MANAGEMENT
 // ==========================================
-function registerTeam(payload) {
-  const sheet = getTeamsSheet(payload.roomId);
-  const row = findTeamRow(sheet, payload.teamId);
+function handleRegisterTeam(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getOrCreateRoomSheet('Teams', roomId);
+  var headers = getTeamHeaders();
+  ensureHeaders(sheet, headers);
 
-  const rowData = [
-    payload.teamId, payload.teamName, payload.members, payload.roles,
-    payload.industryType, 1, 0, 0, 'playing', new Date().toISOString(),
-    '', '', '', '', '', '', '', '', '', '', '', '',
-    '', '', '', '', '', '', '', '', '', '', '', ''
+  var row = findTeamRow(sheet, data.teamId);
+  var rowData = [
+    new Date().toISOString(),
+    data.teamId,
+    data.teamName || '',
+    data.members || '',
+    data.roles || '',
+    data.industryType || 12,
+    0,  // Total Score
+    1,  // Current Month
+    0,  // Time Bonus
+    '', '', '', '', '', '', '', '', '', '', '', '', // R1-R12 Score
+    '', '', '', '', '', '', '', '', '', '', '', '', // R1-R12 Time
+    'playing' // Status
   ];
 
   if (row > 0) {
-    sheet.getRange(row, 1, 1, 34).setValues([rowData]);
+    sheet.getRange(row, 1, 1, rowData.length).setValues([rowData]);
   } else {
     sheet.appendRow(rowData);
   }
@@ -161,221 +100,297 @@ function registerTeam(payload) {
   return jsonResponse({ success: true });
 }
 
-function updateScore(payload) {
-  const sheet = getTeamsSheet(payload.roomId);
-  const row = findTeamRow(sheet, payload.teamId);
-  if (row < 0) return jsonResponse({ success: false, error: 'Team not found' });
+function handleUpdateScore(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('Teams', roomId);
+  if (!sheet) return jsonResponse({ success: false, error: 'Room not found' });
+  var row = findTeamRow(sheet, data.teamId);
+  if (row <= 0) return jsonResponse({ success: false, error: 'Team not found' });
 
-  const round = Number(payload.round);
-  const scoreCol = 11 + (round - 1) * 2; // K=11 for r1Score
-  const timeCol = scoreCol + 1;
-
-  sheet.getRange(row, scoreCol).setValue(payload.score);
-  sheet.getRange(row, timeCol).setValue(payload.timeSeconds);
-
-  return jsonResponse({ success: true });
-}
-
-function updateMonth(payload) {
-  const sheet = getTeamsSheet(payload.roomId);
-  const row = findTeamRow(sheet, payload.teamId);
-  if (row < 0) return jsonResponse({ success: false, error: 'Team not found' });
-
-  sheet.getRange(row, 6).setValue(payload.currentMonth); // F column
+  var scoreCol = 9 + data.round; // R1 Score = col 10
+  var timeCol = 9 + 12 + data.round; // R1 Time = col 22
+  sheet.getRange(row, scoreCol).setValue(data.score);
+  sheet.getRange(row, timeCol).setValue(data.timeSeconds);
 
   return jsonResponse({ success: true });
 }
 
-function updateTotal(payload) {
-  const sheet = getTeamsSheet(payload.roomId);
-  const row = findTeamRow(sheet, payload.teamId);
-  if (row < 0) return jsonResponse({ success: false, error: 'Team not found' });
+function handleUpdateMonth(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('Teams', roomId);
+  if (!sheet) return jsonResponse({ success: false, error: 'Room not found' });
+  var row = findTeamRow(sheet, data.teamId);
+  if (row <= 0) return jsonResponse({ success: false, error: 'Team not found' });
 
-  sheet.getRange(row, 7).setValue(payload.totalScore);  // G column
-  sheet.getRange(row, 8).setValue(payload.timeBonus);    // H column
-
-  return jsonResponse({ success: true });
-}
-
-function updateStatus(payload) {
-  const sheet = getTeamsSheet(payload.roomId);
-  const row = findTeamRow(sheet, payload.teamId);
-  if (row < 0) return jsonResponse({ success: false, error: 'Team not found' });
-
-  sheet.getRange(row, 9).setValue(payload.status); // I column
+  sheet.getRange(row, 8).setValue(data.currentMonth);
 
   return jsonResponse({ success: true });
 }
 
-// ==========================================
-// EVENT OPERATIONS
-// ==========================================
-function createEvent(payload) {
-  const sheet = getEventsSheet(payload.roomId);
-  sheet.clear();
-  sheet.appendRow([
-    payload.roomId, payload.eventType, true,
-    new Date().toISOString(), payload.targetTeams || 'all',
-    payload.instruction || ''
-  ]);
+function handleUpdateTotal(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('Teams', roomId);
+  if (!sheet) return jsonResponse({ success: false, error: 'Room not found' });
+  var row = findTeamRow(sheet, data.teamId);
+  if (row <= 0) return jsonResponse({ success: false, error: 'Team not found' });
+
+  sheet.getRange(row, 7).setValue(data.totalScore);
+  sheet.getRange(row, 9).setValue(data.timeBonus);
+
   return jsonResponse({ success: true });
 }
 
-function clearEvent(payload) {
-  const sheet = getEventsSheetReadOnly(payload.roomId);
-  if (sheet) sheet.clear();
+function handleUpdateStatus(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('Teams', roomId);
+  if (!sheet) return jsonResponse({ success: false, error: 'Room not found' });
+  var row = findTeamRow(sheet, data.teamId);
+  if (row <= 0) return jsonResponse({ success: false, error: 'Team not found' });
+
+  var lastCol = 9 + 12 + 12 + 1; // Status col = 34
+  sheet.getRange(row, lastCol).setValue(data.status);
+
   return jsonResponse({ success: true });
 }
 
-function getEvent(params) {
-  const sheet = getEventsSheetReadOnly(params.roomId);
-  if (!sheet) return jsonResponse({ success: true, data: { isActive: false } });
-  const data = sheet.getDataRange().getValues();
-  if (data.length === 0) {
-    return jsonResponse({ success: true, data: { isActive: false } });
-  }
-  const row = data[0];
-  return jsonResponse({
-    success: true,
-    data: {
-      roomId: row[0],
-      eventType: row[1],
-      isActive: row[2],
-      startedAt: row[3],
-      targetTeams: row[4] || 'all',
-      instruction: row[5] || ''
-    }
-  });
-}
-
-// ==========================================
-// GAME STATE OPERATIONS
-// ==========================================
-function startGame(payload) {
-  const sheet = getGameStateSheet(payload.roomId);
-  sheet.clear();
-  sheet.appendRow([
-    payload.roomId, true, payload.timerMinutes || 90,
-    new Date().toISOString()
-  ]);
-  return jsonResponse({ success: true });
-}
-
-function stopGame(payload) {
-  const sheet = getGameStateSheet(payload.roomId);
-  sheet.clear();
-  sheet.appendRow([payload.roomId, false, 0, '']);
-  return jsonResponse({ success: true });
-}
-
-function getGameState(params) {
-  const sheet = getGameStateSheetReadOnly(params.roomId);
-  if (!sheet) {
-    return jsonResponse({
-      success: true,
-      data: { roomId: params.roomId, gameStarted: false, missionTimerMinutes: 90, createdAt: '' }
-    });
-  }
-  const data = sheet.getDataRange().getValues();
-  if (data.length === 0) {
-    return jsonResponse({
-      success: true,
-      data: { roomId: params.roomId, gameStarted: false, missionTimerMinutes: 90, createdAt: '' }
-    });
-  }
-  const row = data[0];
-  return jsonResponse({
-    success: true,
-    data: {
-      roomId: row[0],
-      gameStarted: row[1],
-      missionTimerMinutes: row[2],
-      createdAt: row[3]
-    }
-  });
-}
-
-// ==========================================
-// GET ALL TEAMS
-// ==========================================
-function getAllTeams(params) {
-  const sheet = getTeamsSheetReadOnly(params.roomId);
+function handleGetAllTeams(roomId) {
+  var sheet = getRoomSheet('Teams', roomId);
   if (!sheet) return jsonResponse({ success: true, data: [] });
-  const data = sheet.getDataRange().getValues();
-  if (data.length === 0) {
-    return jsonResponse({ success: true, data: [] });
-  }
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return jsonResponse({ success: true, data: [] });
+  var data = sheet.getRange(1, 1, lastRow, 34).getValues();
 
-  const teams = data.map(function(row) {
-    return {
-      teamId: row[0],
-      teamName: row[1],
-      members: row[2],
-      roles: row[3],
-      industryType: row[4],
-      currentMonth: row[5],
+  var teams = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[1] && !row[2]) continue; // skip empty rows
+    teams.push({
+      teamId: row[1],
+      teamName: row[2],
+      currentMonth: row[7],
       totalScore: row[6],
-      timeBonus: row[7],
-      status: row[8],
-      registeredAt: row[9],
-      r1Score: row[10], r1Time: row[11],
-      r2Score: row[12], r2Time: row[13],
-      r3Score: row[14], r3Time: row[15],
-      r4Score: row[16], r4Time: row[17],
-      r5Score: row[18], r5Time: row[19],
-      r6Score: row[20], r6Time: row[21],
-      r7Score: row[22], r7Time: row[23],
-      r8Score: row[24], r8Time: row[25],
-      r9Score: row[26], r9Time: row[27],
-      r10Score: row[28], r10Time: row[29],
-      r11Score: row[30], r11Time: row[31],
-      r12Score: row[32], r12Time: row[33]
-    };
-  });
+      timeBonus: row[8],
+      r1Score: row[9], r2Score: row[10], r3Score: row[11], r4Score: row[12],
+      r5Score: row[13], r6Score: row[14], r7Score: row[15], r8Score: row[16],
+      r9Score: row[17], r10Score: row[18], r11Score: row[19], r12Score: row[20],
+      r1Time: row[21], r2Time: row[22], r3Time: row[23], r4Time: row[24],
+      r5Time: row[25], r6Time: row[26], r7Time: row[27], r8Time: row[28],
+      r9Time: row[29], r10Time: row[30], r11Time: row[31], r12Time: row[32],
+      status: row[33] || 'playing'
+    });
+  }
 
   return jsonResponse({ success: true, data: teams });
 }
 
 // ==========================================
-// ROOM MANAGEMENT
+// EVENT MANAGEMENT
 // ==========================================
-function listRooms() {
-  const ss = getSpreadsheet();
-  const sheets = ss.getSheets();
-  const roomIdSet = {};
-  var prefixes = ['Teams_', 'Events_', 'GameState_'];
+function handleCreateEvent(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getOrCreateRoomSheet('Events', roomId);
+  ensureHeaders(sheet, ['Event Type', 'Is Active', 'Started At', 'Target Teams', 'Instruction']);
 
-  sheets.forEach(function(sheet) {
-    var name = sheet.getName();
-    prefixes.forEach(function(prefix) {
-      if (name.startsWith(prefix)) {
-        var roomId = name.replace(prefix, '');
-        if (roomId) roomIdSet[roomId] = true;
-      }
-    });
-  });
-
-  return jsonResponse({ success: true, data: Object.keys(roomIdSet) });
-}
-
-function deleteRoom(payload) {
-  const ss = getSpreadsheet();
-  const suffixes = ['Teams_', 'Events_', 'GameState_'];
-
-  suffixes.forEach(function(prefix) {
-    const sheet = ss.getSheetByName(prefix + payload.roomId);
-    if (sheet) {
-      ss.deleteSheet(sheet);
+  // Deactivate previous active events
+  var existing = sheet.getDataRange().getValues();
+  for (var i = 1; i < existing.length; i++) {
+    if (existing[i][1] === true) {
+      sheet.getRange(i + 1, 2).setValue(false);
     }
-  });
+  }
+
+  sheet.appendRow([
+    data.eventType,
+    true,
+    new Date().toISOString(),
+    data.targetTeams || 'all',
+    data.instruction || ''
+  ]);
 
   return jsonResponse({ success: true });
 }
 
+function handleClearEvent(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('Events', roomId);
+  if (!sheet) return jsonResponse({ success: true });
+  var existing = sheet.getDataRange().getValues();
+  for (var i = 1; i < existing.length; i++) {
+    if (existing[i][1] === true) {
+      sheet.getRange(i + 1, 2).setValue(false);
+    }
+  }
+  return jsonResponse({ success: true });
+}
+
+function handleGetEvent(roomId) {
+  var sheet = getRoomSheet('Events', roomId);
+  if (!sheet) return jsonResponse({ success: true, data: { isActive: false } });
+  var data = sheet.getDataRange().getValues();
+
+  // Find last active event
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (data[i][1] === true) {
+      return jsonResponse({
+        success: true,
+        data: {
+          roomId: roomId,
+          eventType: data[i][0],
+          isActive: true,
+          startedAt: data[i][2],
+          targetTeams: data[i][3],
+          instruction: data[i][4]
+        }
+      });
+    }
+  }
+
+  return jsonResponse({ success: true, data: { isActive: false } });
+}
+
 // ==========================================
-// UTILITY
+// GAME STATE
 // ==========================================
+function handleStartGame(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getOrCreateRoomSheet('GameState', roomId);
+  ensureHeaders(sheet, ['Game Started', 'Mission Timer Minutes', 'Created At', 'Industry Type']);
+
+  var rowData = [true, data.timerMinutes || 90, new Date().toISOString(), data.industryType || 12];
+  if (sheet.getLastRow() >= 2) {
+    sheet.getRange(2, 1, 1, 4).setValues([rowData]);
+  } else {
+    sheet.appendRow(rowData);
+  }
+
+  return jsonResponse({ success: true });
+}
+
+function handleStopGame(data) {
+  var roomId = data.roomId || 'room-default';
+  var sheet = getRoomSheet('GameState', roomId);
+  if (!sheet) return jsonResponse({ success: true });
+  if (sheet.getLastRow() >= 2) {
+    sheet.getRange(2, 1).setValue(false);
+  }
+  return jsonResponse({ success: true });
+}
+
+function handleGetGameState(roomId) {
+  var sheet = getRoomSheet('GameState', roomId);
+  if (!sheet) return jsonResponse({ success: true, data: { gameStarted: false } });
+
+  if (sheet.getLastRow() < 2) {
+    return jsonResponse({ success: true, data: { gameStarted: false } });
+  }
+
+  var cols = sheet.getLastColumn();
+  var data = sheet.getRange(2, 1, 1, Math.max(cols, 4)).getValues()[0];
+  return jsonResponse({
+    success: true,
+    data: {
+      roomId: roomId,
+      gameStarted: data[0] === true,
+      missionTimerMinutes: data[1],
+      createdAt: data[2],
+      industryType: data[3] || 12
+    }
+  });
+}
+
+// ==========================================
+// ROOM MANAGEMENT
+// ==========================================
+function handleListRooms() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheets = ss.getSheets();
+  var roomSet = {};
+
+  for (var i = 0; i < sheets.length; i++) {
+    var name = sheets[i].getName();
+    var match = name.match(/^(Teams|Events|GameState)_(.+)$/);
+    if (match) {
+      roomSet[match[2]] = true;
+    }
+  }
+
+  var roomList = Object.keys(roomSet);
+  return jsonResponse({ success: true, data: roomList });
+}
+
+function handleDeleteRoom(data) {
+  var roomId = data.roomId;
+  if (!roomId) return jsonResponse({ success: false, error: 'roomId required' });
+
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var prefixes = ['Teams_', 'Events_', 'GameState_'];
+  var deleted = 0;
+
+  for (var p = 0; p < prefixes.length; p++) {
+    var sheetName = prefixes[p] + roomId;
+    var sheet = ss.getSheetByName(sheetName);
+    if (sheet) {
+      ss.deleteSheet(sheet);
+      deleted++;
+    }
+  }
+
+  return jsonResponse({ success: true, deleted: deleted });
+}
+
+// ==========================================
+// HELPERS
+// ==========================================
+
+/** Write: creates sheet if not exists */
+function getOrCreateRoomSheet(type, roomId) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheetName = type + '_' + roomId;
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+  }
+  return sheet;
+}
+
+/** Read-only: returns existing sheet or null (NEVER auto-creates) */
+function getRoomSheet(type, roomId) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheetName = type + '_' + roomId;
+  return ss.getSheetByName(sheetName);
+}
+
+function ensureHeaders(sheet, headers) {
+  var firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (firstRow[0] === '' || firstRow[0] === null) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+}
+
+function getTeamHeaders() {
+  return [
+    'Timestamp', 'Team ID', 'Team Name', 'Members', 'Roles', 'Industry Type',
+    'Total Score', 'Current Month', 'Time Bonus',
+    'R1 Score', 'R2 Score', 'R3 Score', 'R4 Score', 'R5 Score', 'R6 Score',
+    'R7 Score', 'R8 Score', 'R9 Score', 'R10 Score', 'R11 Score', 'R12 Score',
+    'R1 Time', 'R2 Time', 'R3 Time', 'R4 Time', 'R5 Time', 'R6 Time',
+    'R7 Time', 'R8 Time', 'R9 Time', 'R10 Time', 'R11 Time', 'R12 Time',
+    'Status'
+  ];
+}
+
+function findTeamRow(sheet, teamId) {
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][1] == teamId) {
+      return i + 1;
+    }
+  }
+  return -1;
+}
+
 function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
