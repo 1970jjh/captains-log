@@ -15,6 +15,7 @@ function getSpreadsheet() {
   return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
 
+// 시트 생성 (쓰기 작업용)
 function getOrCreateSheet(name) {
   const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(name);
@@ -22,6 +23,12 @@ function getOrCreateSheet(name) {
     sheet = ss.insertSheet(name);
   }
   return sheet;
+}
+
+// 시트 조회 전용 (없으면 null 반환, 절대 생성 안 함)
+function getSheetIfExists(name) {
+  const ss = getSpreadsheet();
+  return ss.getSheetByName(name);
 }
 
 // ==========================================
@@ -34,6 +41,7 @@ function getOrCreateSheet(name) {
 // W: r7Score, X: r7Time, Y: r8Score, Z: r8Time, AA: r9Score, AB: r9Time
 // AC: r10Score, AD: r10Time, AE: r11Score, AF: r11Time, AG: r12Score, AH: r12Time
 
+// 쓰기용 (시트 없으면 생성)
 function getTeamsSheet(roomId) {
   return getOrCreateSheet('Teams_' + roomId);
 }
@@ -44,6 +52,19 @@ function getEventsSheet(roomId) {
 
 function getGameStateSheet(roomId) {
   return getOrCreateSheet('GameState_' + roomId);
+}
+
+// 읽기용 (시트 없으면 null)
+function getTeamsSheetReadOnly(roomId) {
+  return getSheetIfExists('Teams_' + roomId);
+}
+
+function getEventsSheetReadOnly(roomId) {
+  return getSheetIfExists('Events_' + roomId);
+}
+
+function getGameStateSheetReadOnly(roomId) {
+  return getSheetIfExists('GameState_' + roomId);
 }
 
 function findTeamRow(sheet, teamId) {
@@ -201,13 +222,14 @@ function createEvent(payload) {
 }
 
 function clearEvent(payload) {
-  const sheet = getEventsSheet(payload.roomId);
-  sheet.clear();
+  const sheet = getEventsSheetReadOnly(payload.roomId);
+  if (sheet) sheet.clear();
   return jsonResponse({ success: true });
 }
 
 function getEvent(params) {
-  const sheet = getEventsSheet(params.roomId);
+  const sheet = getEventsSheetReadOnly(params.roomId);
+  if (!sheet) return jsonResponse({ success: true, data: { isActive: false } });
   const data = sheet.getDataRange().getValues();
   if (data.length === 0) {
     return jsonResponse({ success: true, data: { isActive: false } });
@@ -247,7 +269,13 @@ function stopGame(payload) {
 }
 
 function getGameState(params) {
-  const sheet = getGameStateSheet(params.roomId);
+  const sheet = getGameStateSheetReadOnly(params.roomId);
+  if (!sheet) {
+    return jsonResponse({
+      success: true,
+      data: { roomId: params.roomId, gameStarted: false, missionTimerMinutes: 90, createdAt: '' }
+    });
+  }
   const data = sheet.getDataRange().getValues();
   if (data.length === 0) {
     return jsonResponse({
@@ -271,7 +299,8 @@ function getGameState(params) {
 // GET ALL TEAMS
 // ==========================================
 function getAllTeams(params) {
-  const sheet = getTeamsSheet(params.roomId);
+  const sheet = getTeamsSheetReadOnly(params.roomId);
+  if (!sheet) return jsonResponse({ success: true, data: [] });
   const data = sheet.getDataRange().getValues();
   if (data.length === 0) {
     return jsonResponse({ success: true, data: [] });

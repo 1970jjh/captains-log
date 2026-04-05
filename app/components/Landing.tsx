@@ -147,13 +147,15 @@ export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, r
           </div>
 
           <div className="nb-card p-3 mb-6">
-            <video
-              className="w-full rounded-lg border-2 border-cl-border"
-              controls
-              poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360'%3E%3Crect fill='%23FFFDF7' width='640' height='360'/%3E%3Ctext fill='%231E3A5F' x='320' y='170' text-anchor='middle' font-size='28' font-weight='bold'%3ECAPTAIN'S LOG%3C/text%3E%3Ctext fill='%23D4A017' x='320' y='210' text-anchor='middle' font-size='16'%3E%E2%96%B6 %EC%98%A4%ED%94%84%EB%8B%9D %EC%98%81%EC%83%81%3C/text%3E%3C/svg%3E"
-            >
-              <source src="/videos/opening.mp4" type="video/mp4" />
-            </video>
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute inset-0 w-full h-full rounded-lg border-2 border-cl-border"
+                src="https://www.youtube.com/embed/AUhwRrrM7HI"
+                title="CAPTAIN'S LOG 오프닝 영상"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
           </div>
 
           {/* Room Selection - Dropdown */}
