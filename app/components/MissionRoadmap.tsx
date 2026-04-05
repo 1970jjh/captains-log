@@ -128,7 +128,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
     const gameProps = { onComplete: handleMissionComplete, onBack: handleMissionBack, startTime: missionStartTime };
 
     return (
-      <div className="min-h-screen bg-cl-bg cl-pattern p-4">
+      <div className="min-h-screen bg-cl-bg nb-pattern p-4">
         {activeEvent && <EventOverlay event={activeEvent} />}
         {clearPopup && (
           <MissionClearPopup
@@ -160,7 +160,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
 
   // Roadmap view
   return (
-    <div className="min-h-screen bg-cl-bg cl-pattern relative">
+    <div className="min-h-screen bg-cl-bg nb-pattern relative">
       {activeEvent && <EventOverlay event={activeEvent} />}
       {clearPopup && (
         <MissionClearPopup
@@ -175,10 +175,10 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
       {/* Admin Password Modal */}
       {showAdminModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-          <div className="cl-card p-6 max-w-sm w-full">
+          <div className="nb-card p-6 max-w-sm w-full">
             <h3 className="text-lg font-black text-cl-text font-[family-name:var(--font-space)] mb-4">🔐 관리자 모드</h3>
             <input
-              type="password"
+              type="text" autoComplete="off"
               value={adminPw}
               onChange={e => { setAdminPw(e.target.value); setAdminError(''); }}
               onKeyDown={e => {
@@ -193,14 +193,14 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                 }
               }}
               placeholder="관리자 비밀번호 입력"
-              className="cl-input w-full mb-3"
+              className="nb-input w-full mb-3"
               autoFocus
             />
             {adminError && <p className="text-cl-red text-sm mb-3 font-bold">{adminError}</p>}
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowAdminModal(false); setAdminPw(''); setAdminError(''); }}
-                className="cl-btn flex-1 py-2 bg-white text-cl-text"
+                className="nb-btn flex-1 py-2 bg-white text-cl-text"
               >
                 취소
               </button>
@@ -214,7 +214,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                     setAdminError('비밀번호가 틀렸습니다.');
                   }
                 }}
-                className="cl-btn flex-1 py-2 bg-cl-cyan text-cl-text"
+                className="nb-btn flex-1 py-2 bg-cl-cyan text-cl-text"
               >
                 확인
               </button>
@@ -227,7 +227,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
       <div className="sticky top-0 z-40 bg-white border-b-3 border-cl-border shadow-[0_4px_0_#1A1A1A]">
         <div className="max-w-2xl mx-auto flex justify-between items-center p-3 px-4">
           <div>
-            <div className="cl-badge bg-cl-gold text-cl-text text-[10px] mb-1">
+            <div className="nb-badge bg-cl-gold text-cl-text text-[10px] mb-1">
               TEAM {teamData.teamId}
             </div>
             <div className="text-base font-black text-cl-text font-[family-name:var(--font-space)] leading-tight">
@@ -243,7 +243,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                 ADMIN
               </button>
             )}
-            <div className="cl-card px-4 py-2 bg-cl-navy text-white !border-cl-navy">
+            <div className="nb-card px-4 py-2 bg-cl-navy text-white !border-cl-navy">
               <div className="text-2xl font-black font-[family-name:var(--font-mono)] leading-none">
                 {teamData.totalScore}
               </div>
@@ -257,12 +257,12 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
 
       {/* Progress Bar */}
       <div className="max-w-2xl mx-auto px-4 pt-4">
-        <div className="cl-card p-3 mb-4">
+        <div className="nb-card p-3 mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-cl-text/60 font-[family-name:var(--font-mono)]">
               📍 진행률 {completedCount}/12
             </span>
-            <span className="cl-badge bg-cl-green text-cl-text">{progressPercent}%</span>
+            <span className="nb-badge bg-cl-green text-cl-text">{progressPercent}%</span>
           </div>
           <div className="h-4 bg-gray-200 rounded-full border-2 border-cl-border overflow-hidden">
             <div
@@ -285,7 +285,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
               {/* Quarter Header */}
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">{quarter.emoji}</span>
-                <div className={`cl-badge ${quarter.color} text-cl-text text-xs`}>
+                <div className={`nb-badge ${quarter.color} text-cl-text text-xs`}>
                   {quarter.label}
                 </div>
                 <div className="flex-1 border-b-3 border-cl-border/20" />
@@ -303,9 +303,9 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                   return (
                     <div
                       key={mission.id}
-                      className={`cl-card p-4 transition-all ${
-                        isCompleted ? 'bg-cl-green/10 border-cl-green cl-card-hover' :
-                        isActive ? 'bg-white border-cl-navy shadow-[6px_6px_0px_#1E3A5F] cl-card-hover' :
+                      className={`nb-card p-4 transition-all ${
+                        isCompleted ? 'bg-cl-green/10 border-cl-green nb-card-hover' :
+                        isActive ? 'bg-white border-cl-navy shadow-[6px_6px_0px_#1E3A5F] nb-card-hover' :
                         'bg-gray-50 opacity-50 border-cl-border/30'
                       }`}
                     >
@@ -351,7 +351,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                           ) : isActive ? (
                             <button
                               onClick={() => handleMissionStart(mission.id)}
-                              className="cl-btn px-4 py-2 bg-cl-navy text-white text-sm"
+                              className="nb-btn px-4 py-2 bg-cl-navy text-white text-sm"
                             >
                               START
                             </button>
@@ -372,7 +372,7 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
 
         {/* All missions complete */}
         {teamData.status === 'completed' && (
-          <div className="cl-card p-8 text-center bg-cl-gold/20 border-cl-gold">
+          <div className="nb-card p-8 text-center bg-cl-gold/20 border-cl-gold">
             <div className="text-5xl mb-3">🎉</div>
             <div className="text-3xl font-black text-cl-text font-[family-name:var(--font-space)] mb-2">
               ALL MISSIONS COMPLETE!

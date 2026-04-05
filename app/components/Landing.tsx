@@ -164,7 +164,7 @@ export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, r
             ADMIN ACCESS
           </h2>
           <input
-            type="password"
+            type="text" autoComplete="off"
             value={adminPw}
             onChange={e => { setAdminPw(e.target.value); setAdminError(''); }}
             onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
