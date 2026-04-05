@@ -176,6 +176,13 @@ export const EVENTS = [
   { type: EventType.HEALTH_CHECK, label: '건강검진', image: 'https://i.ibb.co/ycsSt8bS/2.png', instruction: '오늘은 건강검진이 있는 날. 시력검사를 받으러 다 함께 나오세요.' },
   { type: EventType.VOLUNTEER, label: '봉사활동', image: 'https://i.ibb.co/sJdwz5Gv/event9.jpg', instruction: '오늘은 ESG활동의 일환으로 지역 봉사활동이 있는 날! 모든 팀원이 함께 교육장 내 모든 책상 위에 있는 쓰레기를 모두 모아 분리수거를 완료하고, 본부장(강사)께 완료보고 하세요.' },
   { type: EventType.TOWN_HALL, label: '타운홀 미팅', image: 'https://i.ibb.co/Zpxfgmfh/event10.jpg', instruction: '오늘은 타운홀 미팅이 열리는 날! 전 팀원이 함께 2열 종대로 줄을 맞추어 교육장을 크게 3바퀴 뛰고, 결승선(강사)으로 들어와 인증을 받으세요' },
+  { type: EventType.GOAL_SETTING, label: '목표설정', image: '', instruction: '팀장은 팀원들과 함께 이번 분기 핵심 목표(OKR)를 수립하세요. 목표는 구체적이고 측정 가능해야 합니다!' },
+  { type: EventType.TASK_ASSIGN, label: '업무분담', image: '', instruction: '팀장은 팀원 각자의 강점을 고려하여 업무를 배분하세요. R&R을 명확히 정하고 팀원 전원의 동의를 받으세요!' },
+  { type: EventType.ONE_ON_ONE, label: '1on1 면담', image: '', instruction: '팀장은 팀원 한 명과 1:1 면담을 진행하세요. 업무 현황, 고충, 성장 목표에 대해 진심으로 경청하세요!' },
+  { type: EventType.WEEKLY_REPORT, label: '주간업무보고', image: '', instruction: '각 팀의 팀장은 이번 주 성과와 다음 주 계획을 30초 내로 발표하세요. 핵심만 두괄식으로!' },
+  { type: EventType.PERFORMANCE, label: '성과평가', image: '', instruction: '팀장은 팀원의 성과를 공정하게 평가하고, 구체적인 피드백을 제공하세요. 칭찬과 개선점을 균형있게!' },
+  { type: EventType.HIRING, label: '채용면접', image: '', instruction: '팀에 새 인재가 필요합니다! 팀장은 면접관이 되어 지원자(옆 팀원)에게 핵심 질문 3개를 던지세요!' },
+  { type: EventType.EXIT_INTERVIEW, label: '퇴사면담', image: '', instruction: '핵심 인재가 퇴사를 고민합니다. 팀장은 진심으로 이야기를 듣고, 남아야 할 이유를 설득하세요!' },
 ];
 
 // ==========================================

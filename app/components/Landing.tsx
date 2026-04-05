@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TeamData, TeamMember, IndustryType } from '../types';
 import { ADMIN_PASSWORD, ROLES } from '../constants';
 import { gasService } from '../lib/gasService';
@@ -17,13 +17,43 @@ interface LandingProps {
 
 export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, roomId, onRoomIdChange, industryType }: LandingProps) {
   const [phase, setPhase] = useState<'intro' | 'register' | 'admin-login'>('intro');
-  const [teamId, setTeamId] = useState('');
+  const [teamId, setTeamId] = useState('1');
   const [teamName, setTeamName] = useState('');
   const [members, setMembers] = useState<TeamMember[]>(ROLES.map(r => ({ role: r.label, name: '' })));
   const [adminPw, setAdminPw] = useState('');
   const [adminError, setAdminError] = useState('');
   const [registering, setRegistering] = useState(false);
   const [regError, setRegError] = useState('');
+  const [roomList, setRoomList] = useState<string[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+
+  // Fetch available rooms for participants
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const result = await gasService.listRooms();
+        if (result.success && result.data && Array.isArray(result.data)) {
+          const raw = result.data as unknown[];
+          const ids: string[] = raw.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object' && 'roomId' in item) return String((item as { roomId: string }).roomId);
+            return '';
+          }).filter(Boolean);
+          const unique = [...new Set(ids)];
+          setRoomList(unique);
+          if (unique.length > 0 && roomId === 'room-default') {
+            onRoomIdChange(unique[0]);
+          }
+        }
+      } catch {
+        // non-critical
+      }
+      setLoadingRooms(false);
+    };
+    fetchRooms();
+    const interval = setInterval(fetchRooms, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAdminLogin = () => {
     if (adminPw === ADMIN_PASSWORD) {
@@ -36,11 +66,15 @@ export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, r
   const handleRegister = async () => {
     const tid = parseInt(teamId);
     if (!tid || tid < 1) {
-      setRegError('팀 번호를 입력하세요.');
+      setRegError('팀을 선택하세요.');
       return;
     }
     if (!teamName.trim()) {
       setRegError('팀 이름을 입력하세요.');
+      return;
+    }
+    if (!roomId || roomId === 'room-default') {
+      setRegError('방을 선택하세요.');
       return;
     }
     const filledMembers = members.filter(m => m.name.trim());
@@ -122,24 +156,36 @@ export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, r
             </video>
           </div>
 
+          {/* Room Selection - Dropdown */}
           <div className="nb-card p-4 mb-5">
             <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] mb-2 block font-bold uppercase tracking-widest">
-              ROOM ID
+              ROOM
             </label>
-            <input
-              type="text"
-              value={roomId}
-              onChange={e => onRoomIdChange(e.target.value)}
-              placeholder="room-default"
-              className="nb-input w-full text-center text-sm"
-            />
-            <p className="text-[10px] text-cl-text/40 text-center mt-1.5">강사가 안내한 방 코드를 입력하세요</p>
+            {loadingRooms ? (
+              <div className="text-sm text-cl-text/40 py-3 text-center font-mono">방 목록 로딩중...</div>
+            ) : roomList.length > 0 ? (
+              <select
+                value={roomId}
+                onChange={e => onRoomIdChange(e.target.value)}
+                className="nb-input w-full text-center text-sm"
+              >
+                {roomList.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-sm text-cl-text/40 py-3 text-center">
+                아직 생성된 방이 없습니다.<br />
+                <span className="text-[10px]">강사가 관리자 모드에서 방을 생성해야 합니다.</span>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
             <button
               onClick={() => setPhase('register')}
-              className="nb-btn w-full py-4 text-lg bg-cl-navy text-white"
+              disabled={roomList.length === 0}
+              className="nb-btn w-full py-4 text-lg bg-cl-navy text-white disabled:opacity-40"
             >
               MISSION START
             </button>
@@ -200,15 +246,16 @@ export default function Landing({ onTeamRegistered, onAdminLogin, gameStarted, r
         <div className="space-y-4">
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] mb-1 block font-bold">TEAM ID</label>
-              <input
-                type="number"
+              <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] mb-1 block font-bold">TEAM</label>
+              <select
                 value={teamId}
                 onChange={e => setTeamId(e.target.value)}
-                placeholder="1"
-                min={1}
                 className="nb-input w-full"
-              />
+              >
+                {Array.from({ length: 25 }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n}팀</option>
+                ))}
+              </select>
             </div>
             <div className="flex-1">
               <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] mb-1 block font-bold">TEAM NAME</label>

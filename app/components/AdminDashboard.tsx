@@ -187,7 +187,10 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
     return () => clearInterval(interval);
   }, [activeEventType, eventRemaining > 0, roomId]);
 
-  const sortedTeams = [...teams].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+  // 팀번호 순 정렬 (1팀 → 25팀)
+  const sortedTeams = [...teams].sort((a, b) => (a.teamId || 0) - (b.teamId || 0));
+  // 점수 순 정렬 (랭킹용)
+  const rankedTeams = [...teams].sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
   const formatElapsed = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -309,7 +312,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                 <div className="text-center py-12 text-cl-text/30 font-mono">No teams registered</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  {sortedTeams.map((team, i) => {
+                  {rankedTeams.map((team, i) => {
                     const pct = ((team.totalScore || 0) / MAX_TOTAL) * 100;
                     const color = TEAM_COLORS[team.teamId % TEAM_COLORS.length];
                     const medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : '';
@@ -330,7 +333,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-cl-text text-sm truncate">
-                                {team.teamName || `Team ${team.teamId}`}
+                                {team.teamId}팀 {team.teamName || ''}
                               </span>
                               <span className={`nb-badge text-[9px] py-0 ${
                                 team.status === 'completed'
@@ -379,7 +382,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                         <div key={team.teamId} className="flex items-center gap-2">
                           <div className="w-24 flex-shrink-0 text-right pr-2">
                             <span className="text-xs text-cl-text/60 font-bold truncate block">
-                              {team.teamName || `T${team.teamId}`}
+                              {team.teamId}팀 {team.teamName || ''}
                             </span>
                           </div>
                           <div className="flex-1 flex items-center gap-0.5">
@@ -483,7 +486,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                   >
                     ALL
                   </button>
-                  {teams.map(t => (
+                  {sortedTeams.map(t => (
                     <button
                       key={t.teamId}
                       onClick={() => setEventTarget(String(t.teamId))}
@@ -491,7 +494,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                         eventTarget === String(t.teamId) ? 'bg-cl-purple text-white' : 'bg-white text-cl-text/50'
                       }`}
                     >
-                      {t.teamName || `T${t.teamId}`}
+                      {t.teamId}팀
                     </button>
                   ))}
                 </div>
@@ -544,7 +547,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {EVENTS.map(event => (
                   <button
                     key={event.type}
@@ -575,7 +578,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                     <div key={team.teamId} className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 border border-cl-border" style={{ background: color }} />
                       <span className="text-xs text-cl-text/60 font-mono font-bold w-16 truncate flex-shrink-0">
-                        {team.teamName || `T${team.teamId}`}
+                        {team.teamId}팀 {team.teamName || ''}
                       </span>
                       <div className="flex-1 h-3 bg-gray-100 rounded-full border border-cl-border/20 overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(progressPct, 3)}%`, background: color }} />
@@ -614,7 +617,7 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                   <div key={team.teamId} className={`nb-card flex-1 min-w-[200px] p-6 ${bgColor}`}>
                     <div className="text-3xl mb-2" dangerouslySetInnerHTML={{ __html: medal }} />
                     <div className="text-xl font-black text-cl-text">
-                      {team.teamName || `Team ${team.teamId}`}
+                      {team.teamId}팀 {team.teamName || ''}
                     </div>
                     <div className="text-3xl font-black text-cl-navy font-mono mt-2">
                       {team.totalScore || 0}<span className="text-sm text-cl-text/30">pts</span>
