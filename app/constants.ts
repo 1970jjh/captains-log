@@ -19,7 +19,7 @@ export const MISSIONS: MissionConfig[] = [
   { id: 5, month: '5월', title: '팀빌딩 워크숍', score: 80, timeLimit: 10, timeBonus: 15, story: '자연 속 원팀 인증샷을 찍어라!' },
   { id: 6, month: '6월', title: '팀장의 역할 점검', score: 70, timeLimit: 10, timeBonus: 15, story: '노래 속에 숨겨진 리더의 12가지 역할 키워드를 찾아라' },
   { id: 7, month: '7월', title: '상반기 리뷰 원온원', score: 90, timeLimit: 15, timeBonus: 15, story: '원온원 면담의 핵심 원칙을 마스터하라' },
-  { id: 8, month: '8월', title: '숨은 역량 발견', score: 70, timeLimit: 7, timeBonus: 15, story: '조용한 팀원의 특별한 재능을 밝혀내라' },
+  { id: 8, month: '8월', title: '숨은 역량 발견', score: 70, timeLimit: 10, timeBonus: 15, story: '단점의 껍질 아래 숨겨진 진짜 역량을 찾아라' },
   { id: 9, month: '9월', title: '돌발 위기 대응', score: 110, timeLimit: 10, timeBonus: 20, story: '골든타임 4분! 동료의 생명을 구하라' },
   { id: 10, month: '10월', title: '조직 재편', score: 100, timeLimit: 12, timeBonus: 20, story: '뒤엉킨 R&R을 재배치해 팀을 정상화하라' },
   { id: 11, month: '11월', title: 'AI 코칭 대화', score: 130, timeLimit: 15, timeBonus: 25, story: 'AI와 함께 코칭 리더십을 증명하라' },
@@ -330,12 +330,56 @@ export const R7_QUIZ: Array<{ phase: string; question: string; title: string; op
   { phase: 'Phase 5. 하반기 계획 및 마무리', title: 'Q20. 원온원의 마무리', question: '1시간의 상반기 리뷰 면담을 끝마칠 때 가장 중요한 행동은 무엇입니까?', optionA: '오늘 합의한 이야기와 서로(팀장과 팀원)가 실천해야 할 \'액션 아이템(Action Item)\'을 요약/기록하고 다음 달에 점검한다.', optionB: '"오늘 피드백받은 내용들 하반기에 잘 개선할 수 있죠?"라며 팀원의 다짐을 받아내고 화기애애하게 자리를 뜬다.', correct: 'A', explanation: '긍정적인 분위기로 끝내는 것보다 중요한 것은 \'실행에 대한 합의\'입니다. 대화로만 끝나는 원온원은 티타임에 불과합니다. 서로 약속한 내용을 기록하고 팔로업해야 진짜 변화가 생깁니다.' },
 ];
 
-export const R8_STORY = `성과 면담을 통해 팀원들을 더 깊이 이해하게 된 당신.
-그런데 평소 조용하기만 했던 팀원에게 숨겨진 특별한 역량이 있다는 소문이 돈다.
-겉으로는 드러나지 않는 잠재력을 발견하는 것이야말로 진정한 리더의 능력!
-당신의 관찰력과 유려한 대화술로 그 팀원이 자발적으로 역량을 드러내게 만들어라!`;
-export const R8_CORRECT_ANSWER = 'STAR';
-export const R8_MISSION_IMAGE = 'https://i.ibb.co/N2B8HLbw/8R.png';
+export const R8_STORY = `7월, 상반기 리뷰를 끝낸 당신은 면담 기록을 다시 펼쳐봤다.
+방어적인 수석, 수동적인 사원, 번아웃 직전의 선임, 냉소적인 대리, 고립된 주임 —
+반년간 이들의 '문제'만 보고 달려왔다.
+
+그런데 문득, 전임 팀장의 메모가 떠올랐다.
+"겉으로 보이는 게 다가 아닙니다."
+
+어쩌면 우리가 '단점'이라 부르던 것은,
+다른 각도에서 보면 이 팀에 반드시 필요한 역할이었을지도 모른다.
+
+지금부터 당신은 수사관이 된다.
+5장의 증거 카드를 뒤집어, 단점의 껍질 아래 숨겨진 진짜 역량을 찾아라.
+그리고 벨빈(Belbin)의 9가지 팀 역할 중 정확한 자리에 배치하라.`;
+export const R8_MISSION_IMAGE = '/images/mission8.jpg';
+
+export const R8_BELBIN_ROLES = [
+  { id: 'plant', name: '창조자 (Plant)', desc: '창의적인 아이디어 제시, 난관 돌파' },
+  { id: 'evaluator', name: '평가자 (Monitor Evaluator)', desc: '논리적 분석, 객관적 리스크 판단' },
+  { id: 'specialist', name: '전문가 (Specialist)', desc: '독보적인 기술력과 깊은 전문성 제공' },
+  { id: 'investigator', name: '자원 탐색자 (Resource Investigator)', desc: '외부 자원/정보 탐색 및 네트워킹' },
+  { id: 'coordinator', name: '조정자 (Co-ordinator)', desc: '목표 명확화, 강점에 따른 역할 분배' },
+  { id: 'teamworker', name: '팀워커 (Team Worker)', desc: '갈등 중재, 윤활유 역할, 헌신적 협력' },
+  { id: 'shaper', name: '추진자 (Shaper)', desc: '장애물 극복, 강한 에너지로 팀 리드' },
+  { id: 'implementer', name: '실행자 (Implementer)', desc: '아이디어를 구체적 작업으로 변환 및 실행' },
+  { id: 'completer', name: '완성자 (Completer Finisher)', desc: '치명적 오류 검수, 완벽한 품질 관리' },
+];
+
+export const R8_EVIDENCE_CARDS = [
+  { id: 'e1', member: '박태호 수석', flaw: '방어적 태도', icon: '🛡️', clue: '기존의 매뉴얼과 절차를 꼼꼼히 확인하며, 한 번 정해진 계획은 흔들림 없이 끝까지 밀고 나가는 우직한 모습을 보였다.', targetRole: 'implementer' },
+  { id: 'e2', member: '이수아 사원', flaw: '수동적 성향', icon: '👀', clue: '스스로 결정을 내리진 않지만, 방대한 문서의 오탈자나 치명적인 누락을 귀신같이 찾아내어 결과물의 퀄리티를 극강으로 끌어올렸다.', targetRole: 'completer' },
+  { id: 'e3', member: '김윤진 선임', flaw: '업무 과부하', icon: '🔥', clue: '다른 팀원들이 기피하는 궂은일을 묵묵히 도맡아 하며, 팀 내 갈등이 생길 때마다 조용히 다가가 상처받은 마음을 위로하는 윤활유 역할을 했다.', targetRole: 'teamworker' },
+  { id: 'e4', member: '최지훈 대리', flaw: '회의적 비판', icon: '😒', clue: '모두가 낙관주의에 빠져 들떠 있을 때, 홀로 날카로운 데이터를 들이밀며 프로젝트가 실패할 수 있는 치명적 리스크를 사전에 경고했다.', targetRole: 'evaluator' },
+  { id: 'e5', member: '정민우 주임', flaw: '고립형 독고다이', icon: '🧱', clue: '남들과 소통하지 않는 대신, 퇴근 후에도 특정 기술을 집요하게 파고들어 팀 내 그 누구도 해결하지 못했던 난제를 독보적인 기술력으로 돌파해 냈다.', targetRole: 'specialist' },
+];
+
+export const R8_CLEAR_MESSAGE = `겉보기엔 문제투성이였던 5명이 사실은 고성과 팀(HPT)을 이루기 위한 핵심 조각들이었습니다.
+
+벨빈(Belbin)의 통찰: "완벽한 개인은 없다. 하지만 완벽한 팀은 만들 수 있다."
+
+리더의 진짜 역할은 팀원의 단점을 고치는 것이 아닙니다.
+단점의 이면에 숨겨진 강점을 발견하고, 그것이 빛날 수 있는 자리에 배치하는 것.
+그것이 고성과 팀을 만드는 유일한 방법입니다.`;
+
+export const R8_RESULT_TABLE = [
+  { member: '박태호 수석', flaw: '방어적, 변화 거부', role: '실행자 (Implementer)', strength: '계획을 끝까지 밀고 나가는 추진력' },
+  { member: '이수아 사원', flaw: '수동적, 주도성 없음', role: '완성자 (Completer Finisher)', strength: '치명적 오류를 잡아내는 섬세함' },
+  { member: '김윤진 선임', flaw: '과부하, 번아웃', role: '팀워커 (Team Worker)', strength: '갈등을 녹이는 팀의 윤활유' },
+  { member: '최지훈 대리', flaw: '회의적, 냉소적', role: '평가자 (Monitor Evaluator)', strength: '리스크를 사전에 경고하는 냉철함' },
+  { member: '정민우 주임', flaw: '고립, 비협조', role: '전문가 (Specialist)', strength: '난제를 돌파하는 독보적 깊이' },
+];
 
 export const R9_STORY = `팀이 안정궤도에 오르던 찰나, 중요 프레젠테이션을 코앞에 두고
 "쿵!" 하는 소리와 함께 다급한 비명이 터진다.
