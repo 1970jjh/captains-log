@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-space: var(--font-space);
+  --font-mono: var(--font-mono);
+  --font-noto: var(--font-noto);
+
+  /* Captain's Log - Navy & Gold Leadership Theme */
+  --color-cl-bg: #FFFDF7;
+  --color-cl-card: #FFFFFF;
+  --color-cl-text: #1A1A1A;
+  --color-cl-border: #1A1A1A;
+  --color-cl-navy: #1E3A5F;
+  --color-cl-gold: #D4A017;
+  --color-cl-cyan: #0EA5E9;
+  --color-cl-teal: #14B8A6;
+  --color-cl-pink: #F472B6;
+  --color-cl-yellow: #FDE047;
+  --color-cl-green: #4ADE80;
+  --color-cl-red: #F87171;
+  --color-cl-purple: #A78BFA;
+  --color-cl-orange: #FB923C;
+  --color-cl-indigo: #6366F1;
+}
+
+/* ===== NEO-BRUTALISM COMPONENTS ===== */
+
+.nb-card {
+  background: #FFFFFF;
+  border: 3px solid #1A1A1A;
+  border-radius: 12px;
+  box-shadow: 4px 4px 0px #1A1A1A;
+}
+
+.nb-card-hover {
+  transition: all 0.15s ease;
+}
+.nb-card-hover:hover {
+  box-shadow: 6px 6px 0px #1A1A1A;
+  transform: translate(-2px, -2px);
+}
+
+.nb-card-active:active {
+  box-shadow: 1px 1px 0px #1A1A1A;
+  transform: translate(3px, 3px);
+}
+
+.nb-btn {
+  border: 3px solid #1A1A1A;
+  border-radius: 10px;
+  font-weight: 800;
+  box-shadow: 4px 4px 0px #1A1A1A;
+  transition: all 0.1s ease;
+  cursor: pointer;
+  user-select: none;
+}
+.nb-btn:hover {
+  box-shadow: 6px 6px 0px #1A1A1A;
+  transform: translate(-2px, -2px);
+}
+.nb-btn:active {
+  box-shadow: 1px 1px 0px #1A1A1A;
+  transform: translate(3px, 3px);
+}
+
+.nb-input {
+  background: #FFFFFF;
+  border: 3px solid #1A1A1A;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.nb-input:focus {
+  box-shadow: 4px 4px 0px #D4A017;
+}
+
+.nb-badge {
+  display: inline-block;
+  border: 2px solid #1A1A1A;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.nb-divider {
+  border-bottom: 3px solid #1A1A1A;
+}
+
+/* ===== ANIMATIONS ===== */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+.animate-shake {
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 4px 4px 0px #1A1A1A; }
+  50% { box-shadow: 6px 6px 0px #D4A017; transform: translate(-2px, -2px); }
+}
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.92; transform: scale(1.01); }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #F5F5F5; border-left: 2px solid #1A1A1A; }
+::-webkit-scrollbar-thumb { background: #1A1A1A; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #1E3A5F; }
+
+/* ===== TABLET TOUCH OPTIMIZATION ===== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .nb-btn {
+    min-height: 48px;
+    font-size: 16px;
+  }
+  .nb-input {
+    min-height: 48px;
+    font-size: 16px;
+  }
+  .nb-badge {
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ===== SUBTLE PATTERN BACKGROUND ===== */
+.nb-pattern {
+  background-image: radial-gradient(circle, #e5e5e5 1px, transparent 1px);
+  background-size: 20px 20px;
+}
