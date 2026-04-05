@@ -147,9 +147,9 @@ export const R4_GAME_DATA = [
     right: '/images/mission4-1-right.jpg',
     label: '회의실 — 이상의 회의 vs 현실의 회의',
     answers: [
-      { x: 55, y: 8, r: 10 },
-      { x: 53, y: 47, r: 10 },
-      { x: 25, y: 67, r: 10 },
+      { x: 50, y: 10, r: 10 },
+      { x: 53, y: 50, r: 10 },
+      { x: 27, y: 65, r: 10 },
     ],
   },
   {
@@ -157,9 +157,9 @@ export const R4_GAME_DATA = [
     right: '/images/mission4-2-right.jpg',
     label: '갈등 — R&R 분장의 이상과 현실',
     answers: [
-      { x: 18, y: 52, r: 10 },
-      { x: 78, y: 42, r: 10 },
-      { x: 62, y: 90, r: 10 },
+      { x: 15, y: 48, r: 10 },
+      { x: 78, y: 43, r: 10 },
+      { x: 68, y: 85, r: 10 },
     ],
   },
   {
@@ -167,9 +167,9 @@ export const R4_GAME_DATA = [
     right: '/images/mission4-3-right.jpg',
     label: '화상회의 — 디지털 협업의 이상과 현실',
     answers: [
-      { x: 85, y: 38, r: 7 },
-      { x: 15, y: 73, r: 7 },
-      { x: 80, y: 75, r: 7 },
+      { x: 87, y: 32, r: 10 },
+      { x: 18, y: 72, r: 10 },
+      { x: 72, y: 82, r: 10 },
     ],
   },
 ];
