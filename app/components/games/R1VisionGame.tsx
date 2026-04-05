@@ -14,7 +14,6 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
   const [speech, setSpeech] = useState('');
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState<{ score: number; feedback: string; strengths: string[]; improvements: string[] } | null>(null);
-  const [cleared, setCleared] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const mission = MISSIONS[0];
 
@@ -26,10 +25,6 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
     const evaluation = await geminiService.evaluateInaugural(speech);
     setResult(evaluation);
     setAttempts(prev => prev + 1);
-
-    if (evaluation.score >= 80) {
-      setCleared(true);
-    }
     setEvaluating(false);
   };
 
@@ -56,9 +51,7 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
         {mission.month}: {mission.title}
       </h2>
 
-      {!cleared ? (
-        <>
-          {/* Story */}
+      {/* Story */}
           <p className="text-cl-text/70 text-sm mb-4 leading-relaxed whitespace-pre-line">{R1_STORY}</p>
 
           {/* Mission Image */}
@@ -149,10 +142,18 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
                 </div>
               )}
 
-              {/* Pass/Fail */}
+              {/* Pass/Fail + Action */}
               {result.score >= 80 ? (
-                <div className="nb-badge bg-cl-green text-white border-cl-green w-full text-center py-2 text-sm">
-                  &#127942; PASS! 훌륭한 취임사입니다!
+                <div className="space-y-3">
+                  <div className="nb-badge bg-cl-green text-white border-cl-green w-full text-center py-2 text-sm">
+                    &#127942; PASS! 훌륭한 취임사입니다!
+                  </div>
+                  <div className="text-center text-cl-text/40 text-xs">
+                    미션 점수: <strong className="text-cl-navy text-base">{Math.round(mission.score * (result.score / 100))}</strong>/{mission.score}점
+                  </div>
+                  <button onClick={handleClear} className="nb-btn w-full py-3 bg-cl-navy text-white text-sm">
+                    NEXT MISSION &#8594;
+                  </button>
                 </div>
               ) : (
                 <div className="nb-badge bg-cl-red/20 text-cl-red border-cl-red w-full text-center py-2 text-sm">
@@ -161,24 +162,6 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
               )}
             </div>
           )}
-        </>
-      ) : (
-        <div className="text-center py-8">
-          <div className="text-5xl mb-3">&#127942;</div>
-          <div className="text-3xl font-black text-cl-green mb-2 font-[family-name:var(--font-space)]">
-            MISSION CLEAR!
-          </div>
-          <p className="text-cl-text/60 mb-2">
-            AI 평가 점수: <strong className="text-cl-navy text-xl">{result?.score}</strong>/100
-          </p>
-          <p className="text-cl-text/40 text-sm mb-6">
-            미션 점수: {Math.round(mission.score * ((result?.score || 80) / 100))}점 획득!
-          </p>
-          <button onClick={handleClear} className="px-8 py-3 nb-btn bg-cl-navy text-white">
-            NEXT MISSION &#8594;
-          </button>
-        </div>
-      )}
     </div>
   );
 }

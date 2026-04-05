@@ -32,5 +32,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 *.mp3
+Mission Image/
+Leadership Song/
 
 .vercel
