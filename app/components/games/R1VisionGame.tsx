@@ -58,14 +58,14 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
           <div className="nb-card p-2 mb-5">
             <img
               src="/images/mission1.jpg"
-              alt="취임사 미션 안내"
+              alt="부임 인사 미션 안내"
               className="w-full rounded-lg border-2 border-cl-border"
             />
           </div>
 
           {/* Guide */}
           <div className="nb-card p-4 mb-5 bg-cl-gold/10 border-cl-gold">
-            <h3 className="text-sm font-black text-cl-navy mb-2">&#128221; 취임사 작성 가이드</h3>
+            <h3 className="text-sm font-black text-cl-navy mb-2">&#128221; 부임 인사 작성 가이드</h3>
             <ul className="text-xs text-cl-text/70 space-y-1.5 leading-relaxed">
               <li>&#10003; <strong>비전 제시</strong> &mdash; 팀이 함께 나아갈 방향과 목표를 제시하세요</li>
               <li>&#10003; <strong>진정성</strong> &mdash; 형식적인 인사가 아닌, 진심이 담긴 표현을 사용하세요</li>
@@ -82,7 +82,7 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
           <div className="mb-4">
             <div className="flex justify-between items-center mb-2">
               <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] font-bold">
-                취임사 작성
+                부임 인사 작성
               </label>
               <span className={`text-xs font-[family-name:var(--font-mono)] font-bold ${isLongEnough ? 'text-cl-green' : 'text-cl-red'}`}>
                 {charCount}/100자 {isLongEnough ? '&#10003;' : '(최소 100자)'}
@@ -91,7 +91,7 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
             <textarea
               value={speech}
               onChange={e => { setSpeech(e.target.value); setResult(null); }}
-              placeholder="팀원들 앞에서 할 취임사를 100자 이상으로 작성하세요.&#10;&#10;예시: &quot;안녕하세요, 오늘부터 여러분과 함께하게 된 팀장 OOO입니다. 저는 이 팀이 단순히 업무를 처리하는 곳이 아니라, 서로의 성장을 돕고 함께 도전하는 팀이 되었으면 합니다...&quot;"
+              placeholder="팀원들 앞에서 할 부임 인사를 100자 이상으로 작성하세요.&#10;&#10;예시: &quot;안녕하세요, 오늘부터 여러분과 함께하게 된 팀장 OOO입니다. 저는 이 팀이 단순히 업무를 처리하는 곳이 아니라, 서로의 성장을 돕고 함께 도전하는 팀이 되었으면 합니다...&quot;"
               className="nb-input w-full h-40 text-sm resize-none leading-relaxed"
             />
           </div>
@@ -146,7 +146,7 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
               {result.score >= 80 ? (
                 <div className="space-y-3">
                   <div className="nb-badge bg-cl-green text-white border-cl-green w-full text-center py-2 text-sm">
-                    &#127942; PASS! 훌륭한 취임사입니다!
+                    &#127942; PASS! 훌륭한 부임 인사입니다!
                   </div>
                   <div className="text-center text-cl-text/40 text-xs">
                     미션 점수: <strong className="text-cl-navy text-base">{Math.round(mission.score * (result.score / 100))}</strong>/{mission.score}점

@@ -29,7 +29,7 @@ function extractText(result: unknown): string {
 export const geminiService = {
   evaluateInaugural: async (speech: string): Promise<{ score: number; feedback: string; strengths: string[]; improvements: string[] }> => {
     try {
-      const prompt = `당신은 리더십 교육 전문가입니다. 신임 팀장이 작성한 취임사를 아래 5가지 기준으로 평가해주세요.
+      const prompt = `당신은 리더십 교육 전문가입니다. 신임 팀장이 작성한 부임 인사를 아래 5가지 기준으로 평가해주세요.
 
 평가 기준 (각 20점, 총 100점):
 1. 비전 제시 (20점): 팀의 방향성과 목표를 명확히 제시했는가?
@@ -38,7 +38,7 @@ export const geminiService = {
 4. 소통 의지 (20점): 열린 소통과 협업에 대한 의지가 드러나는가?
 5. 동기부여 (20점): 팀원들에게 동기를 부여하고 영감을 주는가?
 
-취임사:
+부임 인사:
 "${speech}"
 
 반드시 아래 JSON 형식으로만 응답하세요:
