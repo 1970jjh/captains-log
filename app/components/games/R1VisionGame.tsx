@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { R1_STORY, R1_PROFILES, R1_CORRECT_ANSWER, MISSIONS } from '../../constants';
-import ImagePopup from '../ImagePopup';
+import { R1_STORY, MISSIONS } from '../../constants';
+import { geminiService } from '../../lib/geminiService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
@@ -11,33 +11,42 @@ interface Props {
 }
 
 export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
-  const [answer, setAnswer] = useState('');
+  const [speech, setSpeech] = useState('');
+  const [evaluating, setEvaluating] = useState(false);
+  const [result, setResult] = useState<{ score: number; feedback: string; strengths: string[]; improvements: string[] } | null>(null);
   const [cleared, setCleared] = useState(false);
-  const [error, setError] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState<number | null>(null);
-  const [popupImage, setPopupImage] = useState<{ src: string; alt: string } | null>(null);
+  const [attempts, setAttempts] = useState(0);
   const mission = MISSIONS[0];
 
-  const handleSubmit = () => {
-    const normalized = answer.replace(/\s/g, '').trim();
-    if (normalized === R1_CORRECT_ANSWER) {
+  const handleSubmit = async () => {
+    if (speech.length < 100) return;
+    setEvaluating(true);
+    setResult(null);
+
+    const evaluation = await geminiService.evaluateInaugural(speech);
+    setResult(evaluation);
+    setAttempts(prev => prev + 1);
+
+    if (evaluation.score >= 80) {
       setCleared(true);
-      setError('');
-    } else {
-      setError('ACCESS DENIED - 다시 시도하세요.');
     }
+    setEvaluating(false);
   };
 
   const handleClear = () => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    onComplete(mission.score, elapsed);
+    const finalScore = result ? Math.round(mission.score * (result.score / 100)) : mission.score;
+    onComplete(finalScore, elapsed);
   };
+
+  const charCount = speech.length;
+  const isLongEnough = charCount >= 100;
 
   return (
     <div className="nb-card rounded-2xl p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
-        <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm">← BACK</button>
+        <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm">&#8592; BACK</button>
         <div className="text-xs text-cl-navy font-[family-name:var(--font-mono)]">
           배점: {mission.score}점 | 시간 보너스: {mission.timeLimit}분 이내 +{mission.timeBonus}점
         </div>
@@ -49,59 +58,124 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
 
       {!cleared ? (
         <>
-          <p className="text-cl-text/70 text-sm mb-6 leading-relaxed whitespace-pre-line">{R1_STORY}</p>
+          {/* Story */}
+          <p className="text-cl-text/70 text-sm mb-4 leading-relaxed whitespace-pre-line">{R1_STORY}</p>
 
-          {/* Profiles */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
-            {R1_PROFILES.map(p => (
-              <div key={p.id} className="flex flex-col">
-                <button
-                  onClick={() => setPopupImage({ src: p.image, alt: p.name })}
-                  className={`rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedProfile === p.id ? 'border-cl-navy' : 'border-cl-border/10 hover:border-cl-navy/30'
-                  }`}
-                >
-                  <img src={p.image} alt={p.name} className="w-full aspect-[3/4] object-cover" />
-                </button>
-                <button
-                  onClick={() => setSelectedProfile(p.id)}
-                  className={`mt-1 p-2 rounded-lg text-center text-xs transition-all ${
-                    selectedProfile === p.id ? 'bg-cl-navy/20 text-cl-navy' : 'bg-white text-cl-text/60 hover:text-cl-text'
-                  }`}
-                >
-                  {p.name} 선택
-                </button>
-              </div>
-            ))}
-          </div>
-          {popupImage && (
-            <ImagePopup src={popupImage.src} alt={popupImage.alt} onClose={() => setPopupImage(null)} />
-          )}
-
-          {/* Answer */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={answer}
-              onChange={e => { setAnswer(e.target.value); setError(''); }}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="리더십 키워드를 입력하세요"
-              className="flex-1 nb-input px-4 py-3 text-cl-text"
+          {/* Mission Image */}
+          <div className="nb-card p-2 mb-5">
+            <img
+              src="/images/mission1.jpg"
+              alt="취임사 미션 안내"
+              className="w-full rounded-lg border-2 border-cl-border"
             />
-            <button onClick={handleSubmit} className="px-6 py-3 nb-btn bg-cl-navy text-white">
-              SUBMIT
-            </button>
           </div>
-          {error && <p className="text-cl-red text-sm mt-2 font-[family-name:var(--font-mono)]">{error}</p>}
+
+          {/* Guide */}
+          <div className="nb-card p-4 mb-5 bg-cl-gold/10 border-cl-gold">
+            <h3 className="text-sm font-black text-cl-navy mb-2">&#128221; 취임사 작성 가이드</h3>
+            <ul className="text-xs text-cl-text/70 space-y-1.5 leading-relaxed">
+              <li>&#10003; <strong>비전 제시</strong> &mdash; 팀이 함께 나아갈 방향과 목표를 제시하세요</li>
+              <li>&#10003; <strong>진정성</strong> &mdash; 형식적인 인사가 아닌, 진심이 담긴 표현을 사용하세요</li>
+              <li>&#10003; <strong>팀원 존중</strong> &mdash; 팀원 한 사람 한 사람의 역할과 가치를 인정하세요</li>
+              <li>&#10003; <strong>소통 의지</strong> &mdash; 열린 소통과 투명한 협업에 대한 의지를 보여주세요</li>
+              <li>&#10003; <strong>동기부여</strong> &mdash; 팀원들이 기대감을 갖고 함께하고 싶도록 영감을 주세요</li>
+            </ul>
+            <p className="text-[10px] text-cl-text/40 mt-3 font-[family-name:var(--font-mono)]">
+              AI가 위 5가지 기준(각 20점, 총 100점)으로 평가합니다. 80점 이상이면 PASS!
+            </p>
+          </div>
+
+          {/* Speech Input */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-xs text-cl-text/60 font-[family-name:var(--font-mono)] font-bold">
+                취임사 작성
+              </label>
+              <span className={`text-xs font-[family-name:var(--font-mono)] font-bold ${isLongEnough ? 'text-cl-green' : 'text-cl-red'}`}>
+                {charCount}/100자 {isLongEnough ? '&#10003;' : '(최소 100자)'}
+              </span>
+            </div>
+            <textarea
+              value={speech}
+              onChange={e => { setSpeech(e.target.value); setResult(null); }}
+              placeholder="팀원들 앞에서 할 취임사를 100자 이상으로 작성하세요.&#10;&#10;예시: &quot;안녕하세요, 오늘부터 여러분과 함께하게 된 팀장 OOO입니다. 저는 이 팀이 단순히 업무를 처리하는 곳이 아니라, 서로의 성장을 돕고 함께 도전하는 팀이 되었으면 합니다...&quot;"
+              className="nb-input w-full h-40 text-sm resize-none leading-relaxed"
+            />
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={handleSubmit}
+            disabled={!isLongEnough || evaluating}
+            className="nb-btn w-full py-3 bg-cl-navy text-white text-sm disabled:opacity-40"
+          >
+            {evaluating ? 'AI 평가 중...' : attempts > 0 ? '다시 평가받기' : 'AI에게 평가받기'}
+          </button>
+
+          {/* Evaluation Result */}
+          {result && (
+            <div className={`mt-5 nb-card p-5 ${result.score >= 80 ? 'bg-cl-green/10 border-cl-green' : 'bg-cl-red/10 border-cl-red'}`}>
+              {/* Score */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-cl-text">AI 평가 결과</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-3xl font-black font-[family-name:var(--font-mono)] ${result.score >= 80 ? 'text-cl-green' : 'text-cl-red'}`}>
+                    {result.score}
+                  </span>
+                  <span className="text-sm text-cl-text/40">/100점</span>
+                </div>
+              </div>
+
+              {/* Feedback */}
+              <p className="text-sm text-cl-text/70 mb-3 leading-relaxed">{result.feedback}</p>
+
+              {/* Strengths */}
+              {result.strengths.length > 0 && (
+                <div className="mb-2">
+                  <span className="text-xs font-bold text-cl-green">&#128077; 잘한 점</span>
+                  <ul className="text-xs text-cl-text/60 mt-1 space-y-0.5">
+                    {result.strengths.map((s, i) => <li key={i}>&bull; {s}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Improvements */}
+              {result.improvements.length > 0 && (
+                <div className="mb-3">
+                  <span className="text-xs font-bold text-cl-orange">&#128736; 개선 포인트</span>
+                  <ul className="text-xs text-cl-text/60 mt-1 space-y-0.5">
+                    {result.improvements.map((s, i) => <li key={i}>&bull; {s}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Pass/Fail */}
+              {result.score >= 80 ? (
+                <div className="nb-badge bg-cl-green text-white border-cl-green w-full text-center py-2 text-sm">
+                  &#127942; PASS! 훌륭한 취임사입니다!
+                </div>
+              ) : (
+                <div className="nb-badge bg-cl-red/20 text-cl-red border-cl-red w-full text-center py-2 text-sm">
+                  &#9888; 80점 이상이 필요합니다. 개선 포인트를 참고하여 다시 작성해보세요!
+                </div>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <div className="text-center py-8">
-          <div className="text-4xl font-black text-cl-green mb-4 font-[family-name:var(--font-space)]">
-            ACCESS GRANTED
+          <div className="text-5xl mb-3">&#127942;</div>
+          <div className="text-3xl font-black text-cl-green mb-2 font-[family-name:var(--font-space)]">
+            MISSION CLEAR!
           </div>
-          <p className="text-cl-text/60 mb-6">MISSION CLEAR - {mission.score}점 획득!</p>
+          <p className="text-cl-text/60 mb-2">
+            AI 평가 점수: <strong className="text-cl-navy text-xl">{result?.score}</strong>/100
+          </p>
+          <p className="text-cl-text/40 text-sm mb-6">
+            미션 점수: {Math.round(mission.score * ((result?.score || 80) / 100))}점 획득!
+          </p>
           <button onClick={handleClear} className="px-8 py-3 nb-btn bg-cl-navy text-white">
-            NEXT MISSION →
+            NEXT MISSION &#8594;
           </button>
         </div>
       )}

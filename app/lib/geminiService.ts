@@ -27,6 +27,41 @@ function extractText(result: unknown): string {
 }
 
 export const geminiService = {
+  evaluateInaugural: async (speech: string): Promise<{ score: number; feedback: string; strengths: string[]; improvements: string[] }> => {
+    try {
+      const prompt = `당신은 리더십 교육 전문가입니다. 신임 팀장이 작성한 취임사를 아래 5가지 기준으로 평가해주세요.
+
+평가 기준 (각 20점, 총 100점):
+1. 비전 제시 (20점): 팀의 방향성과 목표를 명확히 제시했는가?
+2. 진정성 (20점): 진심이 담긴 표현인가, 형식적이지 않은가?
+3. 팀원 존중 (20점): 팀원들의 역할과 가치를 인정하고 있는가?
+4. 소통 의지 (20점): 열린 소통과 협업에 대한 의지가 드러나는가?
+5. 동기부여 (20점): 팀원들에게 동기를 부여하고 영감을 주는가?
+
+취임사:
+"${speech}"
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{"score":0-100,"feedback":"종합 피드백 2-3문장","strengths":["강점1","강점2"],"improvements":["개선점1","개선점2"]}`;
+
+      const result = await callGemini(FLASH_MODEL, [{ role: 'user', parts: [{ text: prompt }] }]);
+      const text = extractText(result);
+      const json = text.match(/\{[\s\S]*\}/);
+      if (json) {
+        const parsed = JSON.parse(json[0]);
+        return {
+          score: Number(parsed.score) || 0,
+          feedback: parsed.feedback || '',
+          strengths: parsed.strengths || [],
+          improvements: parsed.improvements || [],
+        };
+      }
+      return { score: 50, feedback: '평가 결과를 파싱할 수 없습니다.', strengths: [], improvements: [] };
+    } catch (error) {
+      return { score: 0, feedback: `평가 오류: ${error}`, strengths: [], improvements: [] };
+    }
+  },
+
   verifyPlantInPhoto: async (imageBase64: string, mimeType: string): Promise<{ pass: boolean; message: string }> => {
     try {
       const result = await callGemini(FLASH_MODEL, [{
