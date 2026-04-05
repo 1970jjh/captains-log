@@ -342,16 +342,20 @@ function getAllTeams(params) {
 function listRooms() {
   const ss = getSpreadsheet();
   const sheets = ss.getSheets();
-  const roomIds = [];
+  const roomIdSet = {};
+  var prefixes = ['Teams_', 'Events_', 'GameState_'];
 
   sheets.forEach(function(sheet) {
-    const name = sheet.getName();
-    if (name.startsWith('Teams_')) {
-      roomIds.push(name.replace('Teams_', ''));
-    }
+    var name = sheet.getName();
+    prefixes.forEach(function(prefix) {
+      if (name.startsWith(prefix)) {
+        var roomId = name.replace(prefix, '');
+        if (roomId) roomIdSet[roomId] = true;
+      }
+    });
   });
 
-  return jsonResponse({ success: true, data: roomIds });
+  return jsonResponse({ success: true, data: Object.keys(roomIdSet) });
 }
 
 function deleteRoom(payload) {

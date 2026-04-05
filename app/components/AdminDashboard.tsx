@@ -106,28 +106,52 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
           if (item && typeof item === 'object' && 'roomId' in item) return String((item as { roomId: string }).roomId);
           return '';
         }).filter(Boolean);
-        const unique = [...new Set(roomIds)];
-        setRoomList(unique);
-        // 방이 있고 아직 선택 안 된 경우 첫 번째 방 자동 선택
-        if (unique.length > 0 && !roomId) {
-          setRoomId(unique[0]);
-        }
+        setRoomList([...new Set(roomIds)]);
       }
     } catch {
       // non-critical
     }
-  }, [roomId]);
+  }, []);
 
+  // 첫 로드: 방 목록 불러오고, 방이 있으면 첫 번째 자동 선택
   useEffect(() => {
-    fetchRoomList();
-  }, [fetchRoomList]);
+    const init = async () => {
+      try {
+        const result = await gasService.listRooms();
+        if (result.success && result.data && Array.isArray(result.data)) {
+          const raw = result.data as unknown[];
+          const roomIds: string[] = raw.map(item => {
+            if (typeof item === 'string') return item;
+            if (item && typeof item === 'object' && 'roomId' in item) return String((item as { roomId: string }).roomId);
+            return '';
+          }).filter(Boolean);
+          const unique = [...new Set(roomIds)];
+          setRoomList(unique);
+          if (unique.length > 0) {
+            setRoomId(unique[0]);
+          }
+        }
+      } catch {
+        // non-critical
+      }
+      setLoading(false);
+    };
+    init();
+  }, []);
 
+  // roomId가 설정된 후: 데이터 폴링 (10초마다)
   useEffect(() => {
     if (!roomId) return;
     fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    const dataInterval = setInterval(fetchData, 10000);
+    return () => clearInterval(dataInterval);
   }, [fetchData, roomId]);
+
+  // 방 목록도 15초마다 갱신 (다른 관리자가 방 만들 수 있으므로)
+  useEffect(() => {
+    const roomInterval = setInterval(fetchRoomList, 15000);
+    return () => clearInterval(roomInterval);
+  }, [fetchRoomList]);
 
   useEffect(() => {
     if (!gameStarted || !gameStartTime) {
@@ -147,12 +171,17 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
     const targetRoom = newRoomName.trim() || roomId;
     if (!targetRoom) return;
     await gasService.startGame(targetRoom, timerMinutes);
+    // 방 목록에 즉시 추가
+    setRoomList(prev => {
+      const updated = [...new Set([...prev, targetRoom])];
+      return updated;
+    });
     setRoomId(targetRoom);
     setNewRoomName('');
     setGameStarted(true);
     setGameStartTime(new Date().toISOString());
-    // 방 목록 갱신
-    setTimeout(fetchRoomList, 1000);
+    // GAS 반영 후 방 목록 재확인
+    setTimeout(fetchRoomList, 2000);
   };
 
   const handleStopGame = async () => {
