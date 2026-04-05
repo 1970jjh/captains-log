@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { R9_STORY, MISSIONS } from '../../constants';
+import React, { useState } from 'react';
+import { R9_STORY, R9_MISSION_IMAGE, R9_CORRECT_ANSWER, R9_CLEAR_MESSAGE, MISSIONS } from '../../constants';
+import { geminiService } from '../../lib/geminiService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
@@ -9,263 +10,174 @@ interface Props {
   startTime: number;
 }
 
-const createAudioContext = () => new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+type Phase = 'intro' | 'mission' | 'clear';
 
 export default function R9CrisisGame({ onComplete, onBack, startTime }: Props) {
-  const [gamePhase, setGamePhase] = useState<'intro' | 'step1' | 'step2' | 'step3' | 'result'>('intro');
-  const [score, setScore] = useState(0);
-  const [aiScore, setAiScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [bpm, setBpm] = useState(0);
-  const [feedback, setFeedback] = useState('READY');
-  const [feedbackColor, setFeedbackColor] = useState('#1E3A5F');
-  const [perfectCount, setPerfectCount] = useState(0);
-  const [heartBeat, setHeartBeat] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isPass, setIsPass] = useState(false);
-
-  const lastClickTime = useRef(0);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [answer, setAnswer] = useState('');
+  const [error, setError] = useState('');
+  const [attempts, setAttempts] = useState(0);
   const mission = MISSIONS[8];
 
-  const playSound = useCallback((type: 'tick' | 'correct' | 'error') => {
-    if (!audioCtxRef.current) audioCtxRef.current = createAudioContext();
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    switch (type) {
-      case 'correct':
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
-        break;
-      case 'error':
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(100, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(50, ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
-        break;
-      default:
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(400, ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-    }
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-  }, []);
+  const handleSubmit = () => {
+    const normalized = answer.trim().replace(/\s/g, '');
+    setAttempts(prev => prev + 1);
 
-  const endGame = useCallback(() => {
-    setIsPlaying(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (aiTimerRef.current) clearInterval(aiTimerRef.current);
-    setGamePhase('result');
-  }, []);
-
-  const startGame = () => {
-    setIsPlaying(true);
-    setScore(0);
-    setAiScore(0);
-    setTimeLeft(30);
-    setPerfectCount(0);
-    setFeedback('START!');
-    lastClickTime.current = 0;
-    timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) { endGame(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    aiTimerRef.current = setInterval(() => {
-      if (Math.random() < 0.88) {
-        setAiScore(prev => prev + 95 + Math.floor(Math.random() * 20));
-      } else {
-        setAiScore(prev => prev + 30);
-      }
-    }, 650);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (aiTimerRef.current) clearInterval(aiTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (gamePhase === 'result') setIsPass(score > aiScore);
-  }, [gamePhase, score, aiScore]);
-
-  const handleCompression = useCallback(() => {
-    if (!isPlaying) return;
-    const now = Date.now();
-    if (lastClickTime.current !== 0 && now - lastClickTime.current < 200) return;
-    setHeartBeat(true);
-    setTimeout(() => setHeartBeat(false), 150);
-    if (lastClickTime.current === 0) {
-      lastClickTime.current = now;
-      playSound('tick');
-      return;
-    }
-    const delta = now - lastClickTime.current;
-    lastClickTime.current = now;
-    const currentBpm = Math.round(60000 / delta);
-    setBpm(currentBpm);
-    let scoreAdd = 0;
-    if (currentBpm >= 100 && currentBpm <= 120) {
-      setFeedback('PERFECT!'); setFeedbackColor('#16a34a'); playSound('correct');
-      scoreAdd = 150 + (perfectCount * 20); setPerfectCount(prev => prev + 1);
-    } else if ((currentBpm >= 85 && currentBpm < 100) || (currentBpm > 120 && currentBpm <= 140)) {
-      setFeedback('GOOD'); setFeedbackColor('#1E3A5F'); playSound('tick');
-      scoreAdd = 60; setPerfectCount(0);
-    } else if (currentBpm < 85) {
-      setFeedback('TOO SLOW!'); setFeedbackColor('#d97706'); playSound('error');
-      setPerfectCount(0);
-    } else if (currentBpm > 140 && currentBpm <= 200) {
-      setFeedback('TOO FAST!'); setFeedbackColor('#dc2626'); playSound('error');
-      setPerfectCount(0);
+    if (normalized === R9_CORRECT_ANSWER) {
+      geminiService.speakTTS('Mission Clear!');
+      setPhase('clear');
+      setError('');
     } else {
-      setFeedback('WRONG!'); setFeedbackColor('#dc2626'); playSound('error');
-      scoreAdd = -50; setPerfectCount(0);
-    }
-    setScore(prev => Math.max(0, prev + scoreAdd));
-  }, [isPlaying, perfectCount, playSound]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && isPlaying) { e.preventDefault(); handleCompression(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlaying, handleCompression]);
-
-  const handleFinish = () => {
-    if (isPass) {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      onComplete(mission.score, elapsed);
+      setError('키워드가 일치하지 않습니다. 고객(강사)을 설득하여 정확한 4글자를 받아오세요!');
     }
   };
 
-  const bpmPercent = Math.min((bpm / 200) * 100, 100);
+  const handleClear = () => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    onComplete(mission.score, elapsed); // 정답 입력 = 무조건 만점
+  };
 
+  // ============ INTRO ============
+  if (phase === 'intro') {
+    return (
+      <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-3">
+          <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm">&larr; BACK</button>
+          <span className="text-xs text-cl-navy font-[family-name:var(--font-mono)]">배점: {mission.score}점</span>
+        </div>
+        <h2 className="text-lg font-bold text-cl-navy font-[family-name:var(--font-space)] mb-2">{mission.month}: {mission.title}</h2>
+        <p className="text-cl-text/70 text-sm mb-4 leading-relaxed whitespace-pre-line">{R9_STORY}</p>
+
+        <div className="nb-card p-2 mb-5">
+          <img src={R9_MISSION_IMAGE} alt="9월 미션 안내" className="w-full rounded-lg border-2 border-cl-border" />
+        </div>
+
+        {/* Mission Rules */}
+        <div className="nb-card p-4 bg-cl-red/10 border-cl-red mb-4">
+          <h3 className="text-sm font-black text-cl-red mb-2">&#128680; 긴급 미션</h3>
+          <ul className="text-xs text-cl-text/70 space-y-1.5 leading-relaxed">
+            <li>&bull; 고객(강사)에게 <strong>직접 전화</strong>를 걸어 클레임에 대응하세요</li>
+            <li>&bull; 진심 어린 공감과 구체적 해결책으로 고객을 설득하세요</li>
+            <li>&bull; 목표: 고객으로부터 <strong>&ldquo;네네, 그럼 2주 안에는 처리해주세요&rdquo;</strong> 라는 응답을 이끌어내기</li>
+            <li>&bull; 고객이 설득에 응하면 알려주는 <strong>4글자 키워드</strong>를 입력하면 클리어!</li>
+          </ul>
+        </div>
+
+        {/* 설득 가이드 */}
+        <div className="nb-card p-4 bg-cl-gold/10 border-cl-gold mb-5">
+          <h3 className="text-sm font-black text-cl-navy mb-2">&#128222; 고객 설득 가이드</h3>
+          <div className="space-y-2 text-xs text-cl-text/70">
+            <div className="flex gap-2"><span className="text-cl-navy font-bold shrink-0">1. 공감</span><span>&ldquo;정말 큰 피해를 입으셨군요&rdquo; &mdash; 고객의 감정을 먼저 인정</span></div>
+            <div className="flex gap-2"><span className="text-cl-navy font-bold shrink-0">2. 사과</span><span>&ldquo;저희의 부족함으로...&rdquo; &mdash; 진심 어린 사과</span></div>
+            <div className="flex gap-2"><span className="text-cl-navy font-bold shrink-0">3. 원인</span><span>&ldquo;확인 결과 OO 부분에서...&rdquo; &mdash; 투명한 원인 공유</span></div>
+            <div className="flex gap-2"><span className="text-cl-navy font-bold shrink-0">4. 해결책</span><span>&ldquo;2주 내에 이렇게 조치하겠습니다&rdquo; &mdash; 구체적 일정+방법</span></div>
+            <div className="flex gap-2"><span className="text-cl-navy font-bold shrink-0">5. 방지</span><span>&ldquo;이런 일이 다시는...&rdquo; &mdash; 재발 방지 약속</span></div>
+          </div>
+        </div>
+
+        <div className="nb-card p-3 mb-5 bg-cl-navy/5 text-center">
+          <p className="text-xs text-cl-text/50">
+            &#9888; 4글자 키워드는 <strong>고객(강사)만</strong> 알고 있습니다.<br />
+            고객을 설득하지 못하면 키워드를 받을 수 없고, 미션을 클리어할 수 없습니다!
+          </p>
+        </div>
+
+        <button onClick={() => setPhase('mission')} className="nb-btn w-full py-3 bg-cl-red text-white text-sm">
+          &#128222; 고객에게 전화 걸기!
+        </button>
+      </div>
+    );
+  }
+
+  // ============ CLEAR ============
+  if (phase === 'clear') {
+    return (
+      <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+        <div className="text-center mb-5">
+          <div className="text-5xl mb-3">&#127942;</div>
+          <h2 className="text-2xl font-black text-cl-green font-[family-name:var(--font-space)] mb-1">MISSION CLEAR!</h2>
+          <p className="text-sm text-cl-text/50">고객 클레임 대응 성공!</p>
+        </div>
+
+        {/* Score */}
+        <div className="nb-card p-4 mb-4 text-center">
+          <span className="text-4xl font-black text-cl-navy font-[family-name:var(--font-mono)]">{mission.score}</span>
+          <span className="text-cl-text/40 text-lg">/{mission.score}점 (만점)</span>
+          <div className="nb-badge bg-cl-gold text-cl-text border-cl-gold mt-2 text-xs">&#127775; 고객의 신뢰를 되찾았습니다!</div>
+        </div>
+
+        {/* Insight */}
+        <div className="nb-card p-4 bg-cl-navy/5 mb-5">
+          <p className="text-sm text-cl-text/70 leading-relaxed whitespace-pre-line">{R9_CLEAR_MESSAGE}</p>
+        </div>
+
+        <button onClick={handleClear} className="nb-btn w-full py-3 bg-cl-navy text-white text-sm">
+          NEXT MISSION &rarr;
+        </button>
+      </div>
+    );
+  }
+
+  // ============ MISSION ============
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: '#FFFDF7' }}>
-      <div className="absolute w-72 h-72 rounded-full opacity-20 -top-12 -left-12" style={{ background: '#1E3A5F', filter: 'blur(80px)' }} />
-      <div className="absolute w-96 h-96 rounded-full opacity-20 -bottom-24 -right-24" style={{ background: '#A78BFA', filter: 'blur(80px)' }} />
+    <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <button onClick={() => setPhase('intro')} className="text-cl-text/40 hover:text-cl-text text-sm">&larr; 안내로 돌아가기</button>
+        <span className="text-xs text-cl-navy font-[family-name:var(--font-mono)]">배점: {mission.score}점</span>
+      </div>
 
-      <div className="relative w-full max-w-md nb-card rounded-3xl overflow-hidden" style={{ maxHeight: '90vh' }}>
-        <div className="p-4 text-center border-b border-cl-navy/20 bg-cl-bg">
-          <h1 className="text-xl font-bold text-cl-text font-[family-name:var(--font-space)]">CPR MASTER : AI BATTLE</h1>
-          <div className="text-xs text-cl-navy/60 font-[family-name:var(--font-mono)]">배점: {mission.score}점</div>
-        </div>
-        <button onClick={onBack} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-cl-red text-white font-bold flex items-center justify-center hover:opacity-80 z-10">X</button>
+      <h2 className="text-lg font-bold text-cl-navy font-[family-name:var(--font-space)] mb-4">&#128222; 고객 클레임 대응 진행 중</h2>
 
-        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
-          {gamePhase === 'intro' && (
-            <div className="text-center space-y-4">
-              <div className="text-6xl">🚑</div>
-              <h2 className="text-2xl font-bold text-cl-text font-[family-name:var(--font-space)]">MISSION START</h2>
-              <p className="text-cl-text/70 text-sm leading-relaxed">{R9_STORY}</p>
-              <p className="text-cl-navy text-sm border border-cl-navy/30 rounded-lg px-3 py-2 font-[family-name:var(--font-mono)]">
-                PASS: AI 점수보다 높으면 승리 | 적정 BPM: 100-120
-              </p>
-              <button onClick={() => setGamePhase('step1')} className="w-full py-4 text-lg nb-btn bg-cl-navy text-white">
-                START BATTLE
-              </button>
-            </div>
-          )}
-
-          {gamePhase === 'step1' && (
-            <div className="text-center space-y-6">
-              <h2 className="text-2xl font-bold text-cl-text font-[family-name:var(--font-space)]">STEP 1: 의식 확인</h2>
-              <p className="text-cl-text/70">쓰러진 동료를 발견! 어깨를 두드려 의식을 확인하세요.</p>
-              <button onClick={() => setGamePhase('step2')} className="w-32 h-32 rounded-full bg-white/10 border-2 border-cl-navy/50 text-5xl mx-auto flex items-center justify-center hover:bg-white/20 transition-all">
-                👆
-              </button>
-            </div>
-          )}
-
-          {gamePhase === 'step2' && (
-            <div className="text-center space-y-6">
-              <h2 className="text-2xl font-bold text-cl-text font-[family-name:var(--font-space)]">STEP 2: 구조 요청</h2>
-              <p className="text-cl-text/70">반응이 없습니다! 즉시 119에 신고하세요.</p>
-              <button onClick={() => { setGamePhase('step3'); startGame(); }} className="w-24 h-24 rounded-3xl text-2xl font-bold text-white mx-auto flex items-center justify-center animate-pulse bg-cl-red">
-                119
-              </button>
-            </div>
-          )}
-
-          {gamePhase === 'step3' && (
-            <div className="space-y-4">
-              <div className="flex justify-between bg-white rounded-xl p-3 text-cl-text font-bold font-[family-name:var(--font-mono)]">
-                <span className="text-cl-navy">ME: {score}</span>
-                <span>{timeLeft}s</span>
-                <span className="text-cl-text/50">AI: {aiScore}</span>
-              </div>
-              <div className="text-center text-3xl font-black uppercase" style={{ color: feedbackColor }}>
-                {feedback}
-              </div>
-              <div className="text-center py-4">
-                <span className={`text-8xl inline-block transition-transform ${heartBeat ? 'scale-110' : 'scale-100'}`}>❤️</span>
-              </div>
-              <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden border border-gray-300">
-                <div className="absolute top-0 bottom-0 bg-cl-green/30 rounded" style={{ left: '50%', width: '10%' }} />
-                <div className="h-full rounded-full transition-all" style={{
-                  width: `${bpmPercent}%`,
-                  background: bpm >= 100 && bpm <= 120 ? 'linear-gradient(90deg, #16a34a, #1E3A5F)' : bpm >= 85 && bpm <= 140 ? '#1E3A5F' : '#dc2626',
-                }} />
-              </div>
-              <p className="text-center text-cl-navy font-bold text-lg font-[family-name:var(--font-mono)]">BPM: {bpm}</p>
-              <button
-                onPointerDown={e => { e.preventDefault(); handleCompression(); }}
-                className="w-full py-8 nb-card rounded-xl text-cl-text font-bold text-xl border border-cl-navy/20 hover:bg-cl-bg active:scale-95 transition-all select-none"
-                style={{ touchAction: 'manipulation' }}
-              >
-                TAP HERE!
-              </button>
-            </div>
-          )}
-
-          {gamePhase === 'result' && (
-            <div className="text-center space-y-6">
-              <h2 className="text-2xl font-bold text-cl-text font-[family-name:var(--font-space)]">BATTLE RESULT</h2>
-              <div className="bg-white rounded-2xl p-6 border-3 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <span className={`inline-block px-6 py-2 rounded-full text-xl font-black ${isPass ? 'bg-cl-green text-black' : 'bg-cl-red text-white'}`}>
-                  {isPass ? 'ACCESS GRANTED' : 'ACCESS DENIED'}
-                </span>
-                <p className="text-cl-text/50 text-sm mt-4">최종 점수</p>
-                <p className="text-4xl font-black text-cl-navy">{score}</p>
-                <p className="text-cl-text font-bold mt-4">
-                  {isPass ? `AI를 ${score - aiScore}점 차이로 이겼습니다!` : `AI에게 ${aiScore - score}점 차이로 졌습니다.`}
-                </p>
-              </div>
-              {isPass ? (
-                <button onClick={handleFinish} className="w-full py-4 text-lg nb-btn bg-cl-green text-white">
-                  MISSION CLEAR
-                </button>
-              ) : (
-                <>
-                  <button onClick={() => { setGamePhase('step1'); setScore(0); setAiScore(0); setTimeLeft(30); setBpm(0); }} className="w-full py-4 text-lg nb-btn bg-cl-navy text-white">
-                    RETRY
-                  </button>
-                  <button onClick={onBack} className="w-full py-3 text-cl-text/40 hover:text-cl-text">CLOSE</button>
-                </>
-              )}
-            </div>
-          )}
+      {/* Status */}
+      <div className="nb-card p-5 mb-5 bg-cl-red/5 border-cl-red/30">
+        <div className="text-center mb-4">
+          <div className="text-4xl mb-2">&#128241;</div>
+          <p className="text-sm text-cl-text/70">고객(강사)에게 <strong>직접 전화</strong>를 걸어 설득하세요!</p>
+          <p className="text-xs text-cl-text/40 mt-1">공감 &rarr; 사과 &rarr; 원인 &rarr; 해결책 &rarr; 재발 방지</p>
         </div>
 
-        <div className="p-3 text-center text-cl-text/30 text-xs border-t border-white/5 bg-cl-bg font-[family-name:var(--font-mono)]">
-          JJ CREATIVE Edu with AI
+        <div className="nb-card p-4 bg-cl-gold/10 border-cl-gold text-center mb-4">
+          <p className="text-sm text-cl-text/70 font-bold mb-1">&#127919; 목표</p>
+          <p className="text-base text-cl-navy font-black">&ldquo;네네, 그럼 2주 안에는 처리해주세요&rdquo;</p>
+          <p className="text-[10px] text-cl-text/40 mt-1">이 응답을 이끌어내면, 고객이 <strong>4글자 키워드</strong>를 알려줍니다</p>
         </div>
+      </div>
+
+      {/* Answer Input */}
+      <div className="nb-card p-5 mb-4">
+        <h3 className="text-sm font-bold text-cl-navy mb-3">&#128273; 고객(강사)이 알려준 키워드 입력</h3>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={answer}
+            onChange={e => { setAnswer(e.target.value); setError(''); }}
+            onKeyDown={e => e.key === 'Enter' && answer.trim() && handleSubmit()}
+            placeholder="4글자를 입력하세요"
+            maxLength={10}
+            className="nb-input flex-1 py-3 text-center text-lg font-black text-cl-navy tracking-widest"
+          />
+          <button
+            onClick={handleSubmit}
+            disabled={!answer.trim()}
+            className="nb-btn px-6 py-3 bg-cl-navy text-white text-sm disabled:opacity-40"
+          >
+            확인
+          </button>
+        </div>
+        {error && (
+          <p className="text-cl-red text-xs mt-2 font-bold animate-shake">{error}</p>
+        )}
+        {attempts > 0 && !error && (
+          <p className="text-cl-text/30 text-[10px] mt-2 font-[family-name:var(--font-mono)] text-center">시도: {attempts}회</p>
+        )}
+      </div>
+
+      {/* Hint */}
+      <div className="text-center">
+        <p className="text-[10px] text-cl-text/30">
+          &#128161; 힌트: 아직 고객을 설득하지 못했다면, 다시 전화를 걸어보세요!<br />
+          진심 어린 공감과 구체적 해결책이 핵심입니다.
+        </p>
       </div>
     </div>
   );
