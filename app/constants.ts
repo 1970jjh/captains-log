@@ -147,9 +147,9 @@ export const R4_GAME_DATA = [
     right: '/images/mission4-1-right.jpg',
     label: '회의실 — 이상의 회의 vs 현실의 회의',
     answers: [
-      { x: 55, y: 11, r: 8 },
-      { x: 52, y: 55, r: 7 },
-      { x: 22, y: 72, r: 8 },
+      { x: 55, y: 8, r: 10 },
+      { x: 53, y: 47, r: 10 },
+      { x: 25, y: 67, r: 10 },
     ],
   },
   {
@@ -157,9 +157,9 @@ export const R4_GAME_DATA = [
     right: '/images/mission4-2-right.jpg',
     label: '갈등 — R&R 분장의 이상과 현실',
     answers: [
-      { x: 18, y: 52, r: 7 },
-      { x: 78, y: 42, r: 7 },
-      { x: 62, y: 90, r: 7 },
+      { x: 18, y: 52, r: 10 },
+      { x: 78, y: 42, r: 10 },
+      { x: 62, y: 90, r: 10 },
     ],
   },
   {

@@ -243,11 +243,11 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
                 ADMIN
               </button>
             )}
-            <div className="nb-card px-4 py-2 bg-cl-navy text-white !border-cl-navy">
-              <div className="text-2xl font-black font-[family-name:var(--font-mono)] leading-none">
+            <div className="nb-card px-4 py-2 !border-cl-navy" style={{ background: '#1E3A5F' }}>
+              <div className="text-2xl font-black font-[family-name:var(--font-mono)] leading-none" style={{ color: '#FFFFFF' }}>
                 {teamData.totalScore}
               </div>
-              <div className="text-[9px] opacity-70 font-[family-name:var(--font-mono)]">
+              <div className="text-[9px] font-[family-name:var(--font-mono)]" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 / 1,200 PTS
               </div>
             </div>
