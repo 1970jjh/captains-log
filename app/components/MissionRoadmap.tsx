@@ -107,11 +107,15 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
 
     onUpdateTeam(newTeam);
 
-    await gasService.updateMissionScore(roomId, teamData.teamId, activeMission, score, timeSeconds);
-    await gasService.updateCurrentMonth(roomId, teamData.teamId, newTeam.currentMonth);
-    await gasService.updateTotalScore(roomId, teamData.teamId, newTotalScore, newTeam.timeBonus);
-    if (activeMission === 12) {
-      await gasService.updateStatus(roomId, teamData.teamId, 'completed');
+    try {
+      await Promise.all([
+        gasService.updateMissionScore(roomId, teamData.teamId, activeMission, score, timeSeconds),
+        gasService.updateCurrentMonth(roomId, teamData.teamId, newTeam.currentMonth),
+        gasService.updateTotalScore(roomId, teamData.teamId, newTotalScore, newTeam.timeBonus),
+        ...(activeMission === 12 ? [gasService.updateStatus(roomId, teamData.teamId, 'completed')] : []),
+      ]);
+    } catch {
+      // GAS save failure is non-critical; local state already updated
     }
 
     geminiService.speakTTS('Mission Clear!');

@@ -50,9 +50,14 @@ export default function R5TeamBuildGame({ onComplete, onBack, startTime, roomId,
     setPhase('verifying');
     setAttempts(prev => prev + 1);
 
-    const result = await geminiService.verifyHeartPhoto(imageData.base64, imageData.mimeType);
-    setVerifyResult(result);
-    setPhase('result');
+    try {
+      const result = await geminiService.verifyHeartPhoto(imageData.base64, imageData.mimeType);
+      setVerifyResult(result);
+      setPhase('result');
+    } catch {
+      setVerifyResult({ pass: false, participantCount: 0, message: 'AI 검증 중 오류가 발생했습니다. 다시 시도해주세요.', score: 0 });
+      setPhase('result');
+    }
   };
 
   const handleRetry = () => {

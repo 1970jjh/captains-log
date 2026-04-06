@@ -25,9 +25,13 @@ export default function R1VisionGame({ onComplete, onBack, startTime, roomId, te
     setEvaluating(true);
     setResult(null);
 
-    const evaluation = await geminiService.evaluateInaugural(speech);
-    setResult(evaluation);
-    setAttempts(prev => prev + 1);
+    try {
+      const evaluation = await geminiService.evaluateInaugural(speech);
+      setResult(evaluation);
+      setAttempts(prev => prev + 1);
+    } catch {
+      setResult({ score: 0, feedback: 'AI 평가 중 오류가 발생했습니다. 다시 시도해주세요.', strengths: [], improvements: [] });
+    }
     setEvaluating(false);
   };
 
