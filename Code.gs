@@ -19,7 +19,7 @@
  */
 
 var SPREADSHEET_ID = '1PjO6J3UX86W61bDTlot784UXWS0HUca6Gnoi0SYy-aM';
-var DRIVE_FOLDER_ID = ''; // Google Drive 폴더 ID (사진/인포그래픽 업로드용) - 사용자가 설정
+var DRIVE_FOLDER_ID = '1zbib5S3M05zxIerQQHFObDEr4qBZ8mfw'; // Google Drive 폴더 ID (사진/인포그래픽 업로드용)
 
 // ==========================================
 // POST HANDLER
