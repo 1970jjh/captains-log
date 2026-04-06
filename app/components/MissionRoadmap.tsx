@@ -139,18 +139,18 @@ export default function MissionRoadmap({ teamData, onUpdateTeam, roomId, onAdmin
             onNext={() => setClearPopup(null)}
           />
         )}
-        {activeMission === 1 && <R1VisionGame {...gameProps} />}
+        {activeMission === 1 && <R1VisionGame {...gameProps} roomId={roomId} teamId={teamData.teamId} />}
         {activeMission === 2 && <R2DiagnosisGame {...gameProps} />}
-        {activeMission === 3 && <R3MeetingGame {...gameProps} />}
+        {activeMission === 3 && <R3MeetingGame {...gameProps} roomId={roomId} teamId={teamData.teamId} />}
         {activeMission === 4 && <R4AssignmentGame {...gameProps} />}
-        {activeMission === 5 && <R5TeamBuildGame {...gameProps} />}
+        {activeMission === 5 && <R5TeamBuildGame {...gameProps} roomId={roomId} teamId={teamData.teamId} />}
         {activeMission === 6 && <R6RetentionGame {...gameProps} />}
-        {activeMission === 7 && <R7FeedbackGame {...gameProps} />}
+        {activeMission === 7 && <R7FeedbackGame {...gameProps} roomId={roomId} teamId={teamData.teamId} />}
         {activeMission === 8 && <R8TalentGame {...gameProps} />}
         {activeMission === 9 && <R9CrisisGame {...gameProps} />}
         {activeMission === 10 && <R10ReorgGame {...gameProps} teamMembers={teamData.members} />}
         {activeMission === 11 && <R11CoachingGame {...gameProps} industryType={teamData.industryType} />}
-        {activeMission === 12 && <R12FinalGame {...gameProps} teamId={teamData.teamId} />}
+        {activeMission === 12 && <R12FinalGame {...gameProps} teamId={teamData.teamId} roomId={roomId} />}
       </div>
     );
   }

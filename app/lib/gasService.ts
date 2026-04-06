@@ -85,4 +85,26 @@ export const gasService = {
 
   deleteRoom: (roomId: string) =>
     postToGas({ action: 'deleteRoom', roomId }),
+
+  // Mission Data (1,3,5,7,12월 상세 데이터)
+  saveMissionData: (roomId: string, teamId: number, month: number, dataJson: string) =>
+    postToGas({ action: 'saveMissionData', roomId, teamId, month, dataJson }),
+
+  getMissionData: (roomId: string, teamId?: number, month?: number) => {
+    const params: Record<string, string> = { action: 'getMissionData', roomId };
+    if (teamId) params.teamId = String(teamId);
+    if (month) params.month = String(month);
+    return getFromGas(params);
+  },
+
+  // Drive file upload (5월 사진, 12월 인포그래픽)
+  uploadTeamFile: (roomId: string, teamId: number, fileType: 'photo' | 'infographic', base64Data: string, mimeType: string) =>
+    postToGas({ action: 'uploadTeamFile', roomId, teamId, fileType, base64Data, mimeType }),
+
+  // Assets
+  getTeamAssets: (roomId: string, teamId: number) =>
+    getFromGas({ action: 'getTeamAssets', roomId, teamId: String(teamId) }),
+
+  getAllAssets: (roomId: string) =>
+    getFromGas({ action: 'getAllAssets', roomId }),
 };

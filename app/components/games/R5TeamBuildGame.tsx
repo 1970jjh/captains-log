@@ -3,11 +3,14 @@
 import React, { useState, useRef } from 'react';
 import { R5_STORY, R5_MISSION_IMAGE, R5_CLEAR_MESSAGE, MISSIONS } from '../../constants';
 import { geminiService } from '../../lib/geminiService';
+import { gasService } from '../../lib/gasService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
+  roomId: string;
+  teamId: number;
 }
 
 type Phase = 'intro' | 'upload' | 'verifying' | 'result';
@@ -19,7 +22,7 @@ const SCORE_TABLE = [
   { min: 3, score: 60, stars: 2, label: 'GOOD' },
 ];
 
-export default function R5TeamBuildGame({ onComplete, onBack, startTime }: Props) {
+export default function R5TeamBuildGame({ onComplete, onBack, startTime, roomId, teamId }: Props) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [preview, setPreview] = useState<string | null>(null);
   const [imageData, setImageData] = useState<{ base64: string; mimeType: string } | null>(null);
@@ -64,6 +67,16 @@ export default function R5TeamBuildGame({ onComplete, onBack, startTime }: Props
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const aiScore = verifyResult?.score || 60;
     const finalScore = Math.round(mission.score * (aiScore / 100));
+    // Upload photo to Drive + save mission data (non-blocking)
+    if (imageData && verifyResult?.pass) {
+      gasService.uploadTeamFile(roomId, teamId, 'photo', imageData.base64, imageData.mimeType).catch(() => {});
+      const missionData = {
+        participantCount: verifyResult.participantCount,
+        aiMessage: verifyResult.message,
+        aiScore: verifyResult.score,
+      };
+      gasService.saveMissionData(roomId, teamId, 5, JSON.stringify(missionData)).catch(() => {});
+    }
     onComplete(finalScore, elapsed);
   };
 

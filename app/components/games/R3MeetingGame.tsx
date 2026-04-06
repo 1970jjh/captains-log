@@ -3,11 +3,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { R3_STORY, R3_MISSION_IMAGE, R3_TEAM_MEMBERS, MISSIONS } from '../../constants';
 import { geminiService } from '../../lib/geminiService';
+import { gasService } from '../../lib/gasService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
+  roomId: string;
+  teamId: number;
 }
 
 type Phase = 'select' | 'profile' | 'goal' | 'chat' | 'result';
@@ -25,7 +28,7 @@ const EVAL_LABELS = [
   { key: 'vision', label: '비전', desc: '함께 나아갈 방향을 제시' },
 ];
 
-export default function R3MeetingGame({ onComplete, onBack, startTime }: Props) {
+export default function R3MeetingGame({ onComplete, onBack, startTime, roomId, teamId }: Props) {
   const [phase, setPhase] = useState<Phase>('select');
   const [selectedMember, setSelectedMember] = useState<typeof R3_TEAM_MEMBERS[0] | null>(null);
   const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
@@ -97,6 +100,18 @@ export default function R3MeetingGame({ onComplete, onBack, startTime }: Props) 
   const handleClear = () => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const finalScore = Math.round(mission.score * (score / 100));
+    // Save mission data to GAS (non-blocking)
+    const missionData = {
+      memberName: selectedMember?.name || '',
+      memberStyle: selectedMember?.style || '',
+      chatHistory: chatHistory.slice(0, 20), // limit to prevent oversized payload
+      finalScore: score,
+      evalScores,
+      feedbackSummary: feedback?.summary || '',
+      goodPoints: feedback?.goodPoints || [],
+      improvementPoints: feedback?.improvementPoints || [],
+    };
+    gasService.saveMissionData(roomId, teamId, 3, JSON.stringify(missionData)).catch(() => {});
     onComplete(finalScore, elapsed);
   };
 

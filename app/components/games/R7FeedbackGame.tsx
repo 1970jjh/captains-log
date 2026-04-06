@@ -2,11 +2,14 @@
 
 import React, { useState } from 'react';
 import { R7_STORY, R7_MISSION_IMAGE, R7_QUIZ, R7_CLEAR_MESSAGE, MISSIONS } from '../../constants';
+import { gasService } from '../../lib/gasService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
+  roomId: string;
+  teamId: number;
 }
 
 type Phase = 'intro' | 'quiz' | 'result';
@@ -27,7 +30,7 @@ const ONEONONE_PROCESS = [
   { step: '6. 마무리', icon: '&#9989;', tips: ['합의한 액션 아이템(Action Item) 반드시 기록', '팀장과 팀원 모두의 실천 과제 명확히', '다음 점검 일정 즉시 잡기', '"감사합니다" 진심으로 마무리'] },
 ];
 
-export default function R7FeedbackGame({ onComplete, onBack, startTime }: Props) {
+export default function R7FeedbackGame({ onComplete, onBack, startTime, roomId, teamId }: Props) {
   const [phase, setPhase] = useState<Phase>('intro');
   const [currentQ, setCurrentQ] = useState(0);
   const [selected, setSelected] = useState<'A' | 'B' | null>(null);
@@ -62,6 +65,18 @@ export default function R7FeedbackGame({ onComplete, onBack, startTime }: Props)
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const ratio = correctCount / R7_QUIZ.length;
     const finalScore = Math.round(mission.score * (ratio * 0.9 + 0.1));
+    // Save quiz results to GAS (non-blocking)
+    const missionData = {
+      correctCount,
+      totalQuestions: R7_QUIZ.length,
+      answers: answers.map((a, i) => ({
+        question: R7_QUIZ[i].title,
+        selected: a.selected,
+        correct: a.correct,
+        correctAnswer: R7_QUIZ[i].correct,
+      })),
+    };
+    gasService.saveMissionData(roomId, teamId, 7, JSON.stringify(missionData)).catch(() => {});
     onComplete(finalScore, elapsed);
   };
 

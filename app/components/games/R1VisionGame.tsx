@@ -3,14 +3,17 @@
 import React, { useState } from 'react';
 import { R1_STORY, MISSIONS } from '../../constants';
 import { geminiService } from '../../lib/geminiService';
+import { gasService } from '../../lib/gasService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
+  roomId: string;
+  teamId: number;
 }
 
-export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
+export default function R1VisionGame({ onComplete, onBack, startTime, roomId, teamId }: Props) {
   const [speech, setSpeech] = useState('');
   const [evaluating, setEvaluating] = useState(false);
   const [result, setResult] = useState<{ score: number; feedback: string; strengths: string[]; improvements: string[] } | null>(null);
@@ -31,6 +34,17 @@ export default function R1VisionGame({ onComplete, onBack, startTime }: Props) {
   const handleClear = () => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     const finalScore = result ? Math.round(mission.score * (result.score / 100)) : mission.score;
+    // Save mission data to GAS (non-blocking)
+    if (result) {
+      const missionData = {
+        speech,
+        aiScore: result.score,
+        feedback: result.feedback,
+        strengths: result.strengths,
+        improvements: result.improvements,
+      };
+      gasService.saveMissionData(roomId, teamId, 1, JSON.stringify(missionData)).catch(() => {});
+    }
     onComplete(finalScore, elapsed);
   };
 

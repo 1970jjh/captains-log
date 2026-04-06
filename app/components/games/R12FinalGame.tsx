@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { R12_STORY, MISSIONS } from '../../constants';
+import { R12_STORY, R12_CLEAR_MESSAGE, R12_MISSION_IMAGE, MISSIONS } from '../../constants';
 import { geminiService } from '../../lib/geminiService';
+import { gasService } from '../../lib/gasService';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
   teamId: number;
+  roomId: string;
 }
 
-export default function R12FinalGame({ onComplete, onBack, startTime, teamId }: Props) {
+export default function R12FinalGame({ onComplete, onBack, startTime, teamId, roomId }: Props) {
   const [phase, setPhase] = useState<'jegi' | 'report' | 'result'>('jegi');
   const [jegiCount, setJegiCount] = useState('');
   const [jegiError, setJegiError] = useState('');
@@ -44,12 +46,21 @@ export default function R12FinalGame({ onComplete, onBack, startTime, teamId }: 
       if (result.pass) {
         setCleared(true);
         setPhase('result');
+        // Save report data to GAS (non-blocking)
+        const missionData = {
+          jegiCount: parseInt(jegiCount) || 0,
+          report,
+          aiValidation: result.message,
+        };
+        gasService.saveMissionData(roomId, teamId, 12, JSON.stringify(missionData)).catch(() => {});
         // Generate infographic
         setGenerating(true);
         try {
           const imgResult = await geminiService.generateReportInfographic(report, teamId);
           if (imgResult.success && imgResult.imageData) {
             setInfographicUrl(`data:image/png;base64,${imgResult.imageData}`);
+            // Upload infographic to Drive (non-blocking)
+            gasService.uploadTeamFile(roomId, teamId, 'infographic', imgResult.imageData, 'image/png').catch(() => {});
           }
         } catch {
           // Infographic generation is non-critical
@@ -87,7 +98,25 @@ export default function R12FinalGame({ onComplete, onBack, startTime, teamId }: 
 
       {phase === 'jegi' && (
         <>
-          <p className="text-cl-text/70 text-sm mb-6 leading-relaxed">{R12_STORY}</p>
+          <p className="text-cl-text/70 text-sm mb-4 leading-relaxed whitespace-pre-line">{R12_STORY}</p>
+
+          {R12_MISSION_IMAGE && (
+            <div className="nb-card p-2 mb-5">
+              <img src={R12_MISSION_IMAGE} alt="12월 미션 안내" className="w-full rounded-lg border-2 border-cl-border" />
+            </div>
+          )}
+
+          <div className="nb-card p-4 bg-cl-gold/10 border-cl-gold mb-5">
+            <h3 className="text-sm font-black text-cl-navy mb-2">&#127919; 미션 규칙</h3>
+            <ul className="text-xs text-cl-text/70 space-y-1 leading-relaxed">
+              <li>&bull; <strong>Step 1</strong>: 팀원 전원이 제기차기 릴레이! (손/발 모두 가능)</li>
+              <li>&bull; 팀 전체 횟수를 합산하여 입력</li>
+              <li>&bull; <strong>Step 2</strong>: 12개월 리더십 여정 성과보고서 작성</li>
+              <li>&bull; AI가 보고서 성의도를 검증 &rarr; 통과 시 미션 클리어</li>
+              <li>&bull; AI가 팀 인포그래픽을 자동 생성합니다</li>
+            </ul>
+          </div>
+
           <div className="bg-white rounded-xl p-4 mb-4 border border-cl-navy/20">
             <label className="text-xs text-cl-navy font-[family-name:var(--font-mono)] mb-2 block">제기차기 횟수 입력</label>
             <input
@@ -184,6 +213,12 @@ export default function R12FinalGame({ onComplete, onBack, startTime, teamId }: 
           {infographicUrl && (
             <div className="mb-4">
               <img src={infographicUrl} alt="팀 인포그래픽" className="w-full rounded-xl border border-cl-navy/20" />
+            </div>
+          )}
+
+          {R12_CLEAR_MESSAGE && (
+            <div className="nb-card p-4 bg-cl-navy/5 mb-5">
+              <p className="text-sm text-cl-text/70 leading-relaxed whitespace-pre-line">{R12_CLEAR_MESSAGE}</p>
             </div>
           )}
 

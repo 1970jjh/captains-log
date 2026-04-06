@@ -1,258 +1,375 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { R11_STORIES, CUSTOMER_SCENARIOS, MISSIONS } from '../../constants';
-import { IndustryType } from '../../types';
-import { geminiService } from '../../lib/geminiService';
+import React, { useState, useCallback } from 'react';
+import { R11_WORD_STORY, R11_MISSION_IMAGE, R11_CLEAR_MSG, R11_WORDS_EN, R11_WORDS_KR, R11_FILLER_EN, R11_FILLER_KR, MISSIONS } from '../../constants';
 
 interface Props {
   onComplete: (score: number, timeSeconds: number) => void;
   onBack: () => void;
   startTime: number;
-  industryType: IndustryType;
+  industryType: number;
 }
 
-const EVAL_LABELS: Record<string, string> = {
-  empathy: '공감',
-  listening: '경청',
-  coaching: '코칭',
-  solution: '해결책',
-  motivation: '동기부여',
-  trust: '신뢰구축',
-  communication: '의사소통',
-  decisiveness: '결단력',
-  delegation: '위임',
-  vision: '비전제시',
-};
+type Phase = 'intro' | 'version-select' | 'playing' | 'result';
+type VersionType = 'en' | 'kr';
 
-const MOOD_LABELS = ['', '매우 화남', '화남', '보통', '긍정적', '만족'];
-const MOOD_COLORS = ['', '#dc2626', '#f97316', '#d97706', '#16a34a', '#1E3A5F'];
+const GRID_SIZE = 8;
 
-export default function R11CoachingGame({ onComplete, onBack, startTime, industryType }: Props) {
-  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [userInput, setUserInput] = useState('');
-  const [satisfactionScore, setSatisfactionScore] = useState(0);
-  const [moodLevel, setMoodLevel] = useState(1);
-  const [evalScores, setEvalScores] = useState<Record<string, number>>({});
-  const [sending, setSending] = useState(false);
-  const [cleared, setCleared] = useState(false);
-  const [chatEnded, setChatEnded] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedback, setFeedback] = useState<{ overallGrade: string; summary: string; goodPoints: string[]; improvementPoints: string[]; practicalTips: string; scoreComment: string } | null>(null);
-  const [feedbackLoading, setFeedbackLoading] = useState(false);
-  const chatRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+interface WordItem { answer: string; question: string }
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const s = [...arr];
+  for (let i = s.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [s[i], s[j]] = [s[j], s[i]];
+  }
+  return s;
+}
+
+function buildGrid(words: WordItem[], filler: string): { grid: string[][]; positions: Record<string, { r: number; c: number }[]> } {
+  const grid: string[][] = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
+  const positions: Record<string, { r: number; c: number }[]> = {};
+  const directions = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[-1,1],[1,-1]];
+
+  for (const wordObj of words) {
+    const word = wordObj.answer;
+    let placed = false;
+    let attempts = 0;
+    while (!placed && attempts < 300) {
+      attempts++;
+      const [dr, dc] = directions[Math.floor(Math.random() * directions.length)];
+      const minR = dr === -1 ? word.length - 1 : 0;
+      const maxR = dr === 1 ? GRID_SIZE - word.length : GRID_SIZE - 1;
+      const minC = dc === -1 ? word.length - 1 : 0;
+      const maxC = dc === 1 ? GRID_SIZE - word.length : GRID_SIZE - 1;
+      if (maxR < minR || maxC < minC) continue;
+
+      const row = Math.floor(Math.random() * (maxR - minR + 1)) + minR;
+      const col = Math.floor(Math.random() * (maxC - minC + 1)) + minC;
+
+      let canPlace = true;
+      const pos: { r: number; c: number }[] = [];
+      for (let i = 0; i < word.length; i++) {
+        const r = row + i * dr;
+        const c = col + i * dc;
+        if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE || (grid[r][c] !== '' && grid[r][c] !== word[i])) {
+          canPlace = false;
+          break;
+        }
+        pos.push({ r, c });
+      }
+      if (canPlace) {
+        pos.forEach((p, i) => { grid[p.r][p.c] = word[i]; });
+        positions[word] = pos;
+        placed = true;
+      }
+    }
+  }
+
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (grid[r][c] === '') {
+        grid[r][c] = filler[Math.floor(Math.random() * filler.length)];
+      }
+    }
+  }
+  return { grid, positions };
+}
+
+export default function R11CoachingGame({ onComplete, onBack, startTime }: Props) {
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [version, setVersion] = useState<VersionType>('en');
+  const [words, setWords] = useState<WordItem[]>([]);
+  const [grid, setGrid] = useState<string[][]>([]);
+  const [wordPositions, setWordPositions] = useState<Record<string, { r: number; c: number }[]>>({});
+  const [selectedCells, setSelectedCells] = useState<{ r: number; c: number }[]>([]);
+  const [foundWords, setFoundWords] = useState<string[]>([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const mission = MISSIONS[10];
 
-  const scenario = CUSTOMER_SCENARIOS[industryType] || CUSTOMER_SCENARIOS[IndustryType.IT_SOLUTION];
-  const story = R11_STORIES[industryType] || R11_STORIES[0];
+  const initGame = useCallback((ver: VersionType) => {
+    const w = ver === 'en' ? [...R11_WORDS_EN] : [...R11_WORDS_KR];
+    const filler = ver === 'en' ? R11_FILLER_EN : R11_FILLER_KR;
+    const { grid: g, positions: p } = buildGrid(w, filler);
+    setWords(w);
+    setGrid(g);
+    setWordPositions(p);
+    setSelectedCells([]);
+    setFoundWords([]);
+    setCurrentQ(0);
+    setConsecutiveErrors(0);
+  }, []);
 
-  // Auto scroll
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [chatHistory]);
+  const reshuffleGrid = useCallback(() => {
+    const filler = version === 'en' ? R11_FILLER_EN : R11_FILLER_KR;
+    const remaining = words.filter(w => !foundWords.includes(w.answer));
+    const found = words.filter(w => foundWords.includes(w.answer));
+    const { grid: g, positions: p } = buildGrid([...found, ...remaining], filler);
+    setGrid(g);
+    setWordPositions(p);
+    setSelectedCells([]);
+    setConsecutiveErrors(0);
+  }, [version, words, foundWords]);
 
-  // Initialize with first message
-  useEffect(() => {
-    if (chatHistory.length === 0) {
-      setChatHistory([{ role: 'assistant', content: scenario.scenario }]);
+  const handleVersionSelect = (ver: VersionType) => {
+    setVersion(ver);
+    initGame(ver);
+    setPhase('playing');
+  };
+
+  const handleCellClick = (r: number, c: number) => {
+    // Already found cell?
+    const isInFound = foundWords.some(w => wordPositions[w]?.some(p => p.r === r && p.c === c));
+    if (isInFound) return;
+
+    const isAlready = selectedCells.some(cell => cell.r === r && cell.c === c);
+    if (isAlready) {
+      setSelectedCells(prev => prev.filter(cell => !(cell.r === r && cell.c === c)));
+      return;
     }
-  }, [chatHistory.length, scenario.scenario]);
 
-  const handleSend = async () => {
-    if (!userInput.trim() || sending) return;
-    const msg = userInput.trim();
-    setUserInput('');
-    setSending(true);
+    const newSelected = [...selectedCells, { r, c }];
+    setSelectedCells(newSelected);
 
-    const newHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [...chatHistory, { role: 'user', content: msg }];
-    setChatHistory(newHistory);
+    const currentWord = words[currentQ]?.answer;
+    if (!currentWord) return;
 
-    try {
-      const result = await geminiService.chatWithCustomer(industryType, newHistory, msg);
-      const updatedHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [...newHistory, { role: 'assistant', content: result.response }];
-      setChatHistory(updatedHistory);
-      setSatisfactionScore(result.satisfactionScore);
-      setMoodLevel(result.moodLevel);
-      setEvalScores(result.evaluationScores);
+    const currentString = newSelected.map(cell => grid[cell.r][cell.c]).join('');
+    const reverseString = currentString.split('').reverse().join('');
 
-      if (result.conversationEnded || result.satisfactionScore >= 80) {
-        setChatEnded(true);
+    if (currentString === currentWord || reverseString === currentWord) {
+      // Found!
+      setFoundWords(prev => [...prev, currentWord]);
+      setSelectedCells([]);
+      setConsecutiveErrors(0);
+
+      if (currentQ + 1 >= words.length) {
+        setTimeout(() => setPhase('result'), 500);
+      } else {
+        setCurrentQ(prev => prev + 1);
       }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'AI 응답 실패';
-      setChatHistory(prev => [...prev, { role: 'assistant', content: `[시스템 오류] ${errorMsg}` }]);
-    }
+    } else if (currentString.length >= currentWord.length) {
+      // Wrong — too many chars selected
+      setMistakes(prev => prev + 1);
+      const newConsec = consecutiveErrors + 1;
+      setConsecutiveErrors(newConsec);
+      setSelectedCells([]);
 
-    setSending(false);
-    inputRef.current?.focus();
+      if (newConsec >= 3) {
+        // Reshuffle grid
+        setTimeout(() => reshuffleGrid(), 300);
+      }
+    }
   };
 
-  const handleEndChat = async () => {
-    setFeedbackLoading(true);
-    try {
-      const result = await geminiService.generateCoachingFeedback(chatHistory, satisfactionScore, industryType);
-      if (result.success) setFeedback(result.feedback);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-      setFeedback({
-        overallGrade: 'N/A',
-        summary: `피드백 생성 중 오류가 발생했습니다: ${errorMsg}`,
-        goodPoints: [],
-        improvementPoints: [],
-        practicalTips: '',
-        scoreComment: '',
-      });
-    }
-    setFeedbackLoading(false);
-    setShowFeedback(true);
-    setCleared(true);
-  };
-
-  const handleComplete = () => {
+  const handleClear = () => {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const finalScore = Math.min(mission.score, Math.round((satisfactionScore / 100) * mission.score));
+    const penalty = mistakes * 2;
+    const finalScore = Math.max(Math.round(mission.score * 0.6), mission.score - penalty);
     onComplete(finalScore, elapsed);
   };
 
+  const isCellInFoundWord = (r: number, c: number) => {
+    return foundWords.some(w => wordPositions[w]?.some(p => p.r === r && p.c === c));
+  };
+
+  // ============ INTRO ============
+  if (phase === 'intro') {
+    return (
+      <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-3">
+          <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm">&larr; BACK</button>
+          <span className="text-xs text-cl-navy font-[family-name:var(--font-mono)]">배점: {mission.score}점</span>
+        </div>
+        <h2 className="text-lg font-bold text-cl-navy font-[family-name:var(--font-space)] mb-2">{mission.month}: {mission.title}</h2>
+        <p className="text-cl-text/70 text-sm mb-4 leading-relaxed whitespace-pre-line">{R11_WORD_STORY}</p>
+
+        <div className="nb-card p-2 mb-5">
+          <img src={R11_MISSION_IMAGE} alt="11월 미션 안내" className="w-full rounded-lg border-2 border-cl-border" />
+        </div>
+
+        <div className="nb-card p-4 bg-cl-gold/10 border-cl-gold mb-5">
+          <h3 className="text-sm font-black text-cl-navy mb-2">&#127919; 미션 규칙</h3>
+          <ul className="text-xs text-cl-text/70 space-y-1 leading-relaxed">
+            <li>&bull; <strong>영어 버전</strong> 또는 <strong>한글 버전</strong> 중 택 1</li>
+            <li>&bull; 8&times;8 글자판에서 전략 키워드 <strong>10개</strong> 찾기</li>
+            <li>&bull; 문제를 읽고, 정답 글자를 <strong>순서대로 클릭</strong></li>
+            <li>&bull; 잘못된 글자 선택 시 초기화 + 오답 카운트</li>
+            <li>&bull; <strong>연속 3회 오답</strong> 시 &rarr; 글자판 재배치!</li>
+            <li>&bull; 오답 1회당 <strong>-2점</strong> (최소 {Math.round(mission.score * 0.6)}점 보장)</li>
+          </ul>
+        </div>
+
+        <button onClick={() => setPhase('version-select')} className="nb-btn w-full py-3 bg-cl-navy text-white text-sm">
+          &#127919; 버전 선택하기
+        </button>
+      </div>
+    );
+  }
+
+  // ============ VERSION SELECT ============
+  if (phase === 'version-select') {
+    return (
+      <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+        <button onClick={() => setPhase('intro')} className="text-cl-text/40 hover:text-cl-text text-sm mb-4">&larr; BACK</button>
+        <h2 className="text-lg font-bold text-cl-navy font-[family-name:var(--font-space)] mb-4 text-center">전략적 사고 버전 선택</h2>
+
+        <div className="grid grid-cols-2 gap-4">
+          <button onClick={() => handleVersionSelect('en')} className="nb-card p-6 text-center nb-card-hover hover:border-cl-navy transition-all">
+            <div className="text-3xl mb-2">&#127462;</div>
+            <h3 className="font-black text-cl-navy text-lg mb-1">영어 버전</h3>
+            <p className="text-xs text-cl-text/50">SWOT, OKR, KPI, MECE...</p>
+            <p className="text-[10px] text-cl-text/30 mt-2">3~4글자 영문 약어</p>
+          </button>
+          <button onClick={() => handleVersionSelect('kr')} className="nb-card p-6 text-center nb-card-hover hover:border-cl-navy transition-all">
+            <div className="text-3xl mb-2">&#127472;&#127479;</div>
+            <h3 className="font-black text-cl-navy text-lg mb-1">한글 버전</h3>
+            <p className="text-xs text-cl-text/50">애자일, 피봇, 블루오션...</p>
+            <p className="text-[10px] text-cl-text/30 mt-2">2~5글자 한글 용어</p>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============ RESULT ============
+  if (phase === 'result') {
+    const penalty = mistakes * 2;
+    const finalScore = Math.max(Math.round(mission.score * 0.6), mission.score - penalty);
+
+    return (
+      <div className="nb-card rounded-2xl p-5 max-w-2xl mx-auto">
+        <div className="text-center mb-5">
+          <div className="text-5xl mb-3">&#127942;</div>
+          <h2 className="text-2xl font-black text-cl-green font-[family-name:var(--font-space)] mb-1">MISSION CLEAR!</h2>
+          <p className="text-sm text-cl-text/50">전략적 사고 마스터! ({version === 'en' ? '영어' : '한글'} 버전)</p>
+        </div>
+
+        <div className="nb-card p-4 mb-4 text-center">
+          <span className="text-4xl font-black text-cl-navy font-[family-name:var(--font-mono)]">{finalScore}</span>
+          <span className="text-cl-text/40 text-lg">/{mission.score}점</span>
+          <div className="text-xs text-cl-text/40 mt-1">오답 {mistakes}회 (감점 -{penalty}점)</div>
+          {mistakes === 0 && <div className="nb-badge bg-cl-gold text-cl-text border-cl-gold mt-2 text-xs">&#127775; PERFECT!</div>}
+        </div>
+
+        {/* Answers review */}
+        <div className="nb-card p-4 mb-4">
+          <h3 className="text-sm font-bold text-cl-navy mb-3">&#128218; 10가지 전략 키워드</h3>
+          <div className="space-y-1.5">
+            {words.map((w, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs p-2 rounded-lg bg-cl-bg">
+                <span className="font-black text-cl-navy font-[family-name:var(--font-mono)] w-16 shrink-0">{w.answer}</span>
+                <span className="text-cl-text/50 flex-1 text-[11px]">{w.question.substring(0, 50)}...</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="nb-card p-4 bg-cl-navy/5 mb-5">
+          <p className="text-sm text-cl-text/70 leading-relaxed whitespace-pre-line">{R11_CLEAR_MSG}</p>
+        </div>
+
+        <button onClick={handleClear} className="nb-btn w-full py-3 bg-cl-navy text-white text-sm">
+          NEXT MISSION &rarr;
+        </button>
+      </div>
+    );
+  }
+
+  // ============ PLAYING ============
+  const currentWord = words[currentQ];
+  const currentString = selectedCells.map(cell => grid[cell.r]?.[cell.c] || '').join('');
+
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-cl-bg">
+    <div className="max-w-4xl mx-auto">
       {/* Header */}
-      <div className="nb-card p-3 flex items-center justify-between border-b border-cl-navy/20">
-        <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm px-3 py-1">← BACK</button>
-        <div className="text-center">
-          <div className="text-xs text-cl-navy font-[family-name:var(--font-mono)]">{mission.month}: {mission.title}</div>
-          <div className="text-[10px] text-cl-text/40 font-[family-name:var(--font-mono)]">배점: {mission.score}점 | {mission.timeLimit}분 이내 +{mission.timeBonus}점</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs font-[family-name:var(--font-mono)]" style={{ color: MOOD_COLORS[moodLevel] }}>
-            {MOOD_LABELS[moodLevel]}
+      <div className="nb-card rounded-2xl p-3 mb-3">
+        <div className="flex items-center justify-between">
+          <button onClick={onBack} className="text-cl-text/40 hover:text-cl-text text-sm">&larr;</button>
+          <div className="flex items-center gap-3">
+            <span className="nb-badge bg-cl-green/20 text-cl-green border-cl-green text-[10px]">&#10003; {foundWords.length}/10</span>
+            <span className="text-xs text-cl-red font-[family-name:var(--font-mono)] font-bold">&times; {mistakes}회</span>
+            <span className="nb-badge bg-cl-navy text-white text-[10px]">{version === 'en' ? 'ENG' : 'KOR'}</span>
           </div>
-          <div className="text-sm font-bold text-cl-navy font-[family-name:var(--font-mono)]">{satisfactionScore}점</div>
         </div>
       </div>
 
-      {/* Evaluation bar */}
-      <div className="px-3 py-2 bg-white overflow-x-auto">
-        <div className="flex gap-2 min-w-max">
-          {Object.entries(EVAL_LABELS).map(([key, label]) => (
-            <div key={key} className="text-center">
-              <div className="text-[8px] text-cl-text/40">{label}</div>
-              <div className="w-8 h-1 bg-gray-200 rounded-full overflow-hidden">
-                <div className="h-full bg-cl-navy rounded-full transition-all" style={{ width: `${evalScores[key] || 0}%` }} />
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Left: Question */}
+        <div className="space-y-3">
+          <div className="nb-card p-4 bg-cl-gold/10 border-cl-gold">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="nb-badge bg-cl-navy text-white text-xs">Q{currentQ + 1}</span>
+              <span className="text-xs text-cl-text/40 font-[family-name:var(--font-mono)]">{currentWord?.answer.length}글자</span>
             </div>
-          ))}
-        </div>
-      </div>
+            <p className="text-sm text-cl-text/80 leading-relaxed">{currentWord?.question}</p>
+          </div>
 
-      {/* Story panel (collapsed) */}
-      <details className="px-3 py-1 bg-cl-bg text-cl-text/50 text-xs">
-        <summary className="cursor-pointer hover:text-cl-text/80">미션 스토리 보기</summary>
-        <p className="mt-2 leading-relaxed">{story}</p>
-        <p className="mt-1 text-cl-navy">[{scenario.title}] 상대: {scenario.customerName}</p>
-      </details>
-
-      {/* Chat */}
-      <div ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {chatHistory.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
-              msg.role === 'user'
-                ? 'bg-cl-navy/20 text-cl-text border border-cl-navy/20 rounded-br-none'
-                : 'bg-cl-purple/10 text-cl-text border border-cl-purple/20 rounded-bl-none'
-            }`}>
-              <div className="text-[10px] text-cl-text/40 mb-1 font-[family-name:var(--font-mono)]">
-                {msg.role === 'user' ? 'YOU (팀장)' : scenario.customerName}
-              </div>
-              {msg.content}
+          {/* Word list */}
+          <div className="nb-card p-3">
+            <h3 className="text-[10px] font-bold text-cl-text/40 mb-2 font-[family-name:var(--font-mono)]">FOUND</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {words.map((w, i) => (
+                <span key={i} className={`nb-badge text-[9px] ${
+                  foundWords.includes(w.answer) ? 'bg-cl-green/20 text-cl-green border-cl-green' :
+                  i === currentQ ? 'bg-cl-gold/30 text-cl-navy border-cl-gold' :
+                  'bg-gray-100 text-cl-text/30'
+                }`}>
+                  {foundWords.includes(w.answer) ? w.answer : i === currentQ ? `Q${i+1} ???` : `Q${i+1}`}
+                </span>
+              ))}
             </div>
           </div>
-        ))}
-        {sending && (
-          <div className="flex justify-start">
-            <div className="bg-cl-purple/10 rounded-2xl rounded-bl-none px-4 py-3 text-cl-text/40 text-sm border border-cl-purple/20 animate-pulse">
-              입력 중...
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Feedback overlay */}
-      {showFeedback && feedback && (
-        <div className="absolute inset-0 bg-black/90 z-50 overflow-y-auto p-4">
-          <div className="nb-card rounded-2xl p-6 max-w-lg mx-auto">
-            <h3 className="text-2xl font-bold text-cl-navy font-[family-name:var(--font-space)] text-center mb-4">COACHING REPORT</h3>
-            <div className="text-center mb-4">
-              <span className={`inline-block px-6 py-2 rounded-full text-2xl font-black ${
-                feedback.overallGrade <= 'B' ? 'bg-cl-green text-black' : feedback.overallGrade <= 'D' ? 'bg-cl-gold text-black' : 'bg-cl-red text-white'
-              }`}>
-                Grade: {feedback.overallGrade}
-              </span>
-            </div>
-            <p className="text-cl-text/70 text-sm mb-4">{feedback.summary}</p>
-            {feedback.goodPoints.length > 0 && (
-              <div className="mb-3">
-                <h4 className="text-cl-green text-xs font-[family-name:var(--font-mono)] mb-1">STRENGTHS</h4>
-                <ul className="text-sm text-cl-text/60 space-y-1">
-                  {feedback.goodPoints.map((p, i) => <li key={i}>+ {p}</li>)}
-                </ul>
-              </div>
-            )}
-            {feedback.improvementPoints.length > 0 && (
-              <div className="mb-3">
-                <h4 className="text-cl-gold text-xs font-[family-name:var(--font-mono)] mb-1">IMPROVEMENTS</h4>
-                <ul className="text-sm text-cl-text/60 space-y-1">
-                  {feedback.improvementPoints.map((p, i) => <li key={i}>- {p}</li>)}
-                </ul>
-              </div>
-            )}
-            {feedback.practicalTips && (
-              <div className="mb-3">
-                <h4 className="text-cl-navy text-xs font-[family-name:var(--font-mono)] mb-1">PRACTICAL TIPS</h4>
-                <p className="text-sm text-cl-text/60">{feedback.practicalTips}</p>
-              </div>
-            )}
-            <button onClick={handleComplete} className="w-full mt-4 py-4 nb-btn bg-cl-navy text-white">
-              MISSION CLEAR
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Input area */}
-      {!cleared && (
-        <div className="p-3 nb-card border-t border-cl-navy/20">
-          {chatEnded ? (
-            <button
-              onClick={handleEndChat}
-              disabled={feedbackLoading}
-              className="w-full py-3 nb-btn bg-cl-green text-white disabled:opacity-50"
-            >
-              {feedbackLoading ? 'ANALYZING...' : 'END CONVERSATION & GET FEEDBACK'}
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <textarea
-                ref={inputRef}
-                value={userInput}
-                onChange={e => setUserInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder="코칭 메시지를 입력하세요..."
-                rows={2}
-                className="flex-1 nb-input px-4 py-2 text-cl-text resize-none text-sm"
-              />
-              <button
-                onClick={handleSend}
-                disabled={sending || !userInput.trim()}
-                className="px-6 nb-btn bg-cl-navy text-white disabled:opacity-50"
-              >
-                SEND
+          {/* Selection display */}
+          <div className="nb-card p-3 text-center">
+            <span className="text-xs text-cl-text/40 font-[family-name:var(--font-mono)]">현재 선택: </span>
+            <span className="text-lg font-black text-cl-navy font-[family-name:var(--font-mono)] tracking-widest">{currentString || '...'}</span>
+            {selectedCells.length > 0 && (
+              <button onClick={() => setSelectedCells([])} className="block mx-auto mt-1 text-[10px] text-cl-red font-[family-name:var(--font-mono)] hover:underline">
+                선택 초기화
               </button>
+            )}
+          </div>
+
+          {consecutiveErrors >= 2 && (
+            <div className="nb-card p-2 bg-cl-red/10 border-cl-red text-center">
+              <p className="text-[10px] text-cl-red font-bold">&#9888; {consecutiveErrors}회 연속 오답! 1회 더 틀리면 글자판이 재배치됩니다!</p>
             </div>
           )}
         </div>
-      )}
+
+        {/* Right: Grid */}
+        <div className="flex flex-col items-center">
+          <div className="nb-card p-3 inline-block">
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}>
+              {grid.map((row, r) => row.map((char, c) => {
+                const isSelected = selectedCells.some(cell => cell.r === r && cell.c === c);
+                const isFound = isCellInFoundWord(r, c);
+
+                return (
+                  <button
+                    key={`${r}-${c}`}
+                    onClick={() => handleCellClick(r, c)}
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center font-bold text-sm transition-all border-2 ${
+                      isFound ? 'bg-cl-green/20 text-cl-green border-cl-green' :
+                      isSelected ? 'bg-cl-navy text-white border-cl-navy shadow-[0_0_10px_rgba(30,58,95,0.5)] scale-105' :
+                      'bg-white text-cl-text/60 border-cl-border/20 hover:bg-cl-navy/5 hover:border-cl-navy/40'
+                    }`}
+                  >
+                    {char}
+                  </button>
+                );
+              }))}
+            </div>
+          </div>
+          <p className="text-[10px] text-cl-text/30 mt-2 font-[family-name:var(--font-mono)]">
+            글자를 순서대로 클릭하세요 (가로/세로/대각선)
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

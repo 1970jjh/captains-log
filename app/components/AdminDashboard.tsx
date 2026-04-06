@@ -18,6 +18,19 @@ interface TeamRow {
   r9Score?: number; r10Score?: number; r11Score?: number; r12Score?: number;
 }
 
+interface MissionDataItem {
+  teamId: number;
+  month: number;
+  dataJson: string;
+  timestamp: string;
+}
+
+interface TeamAsset {
+  teamId: number;
+  photoUrl: string;
+  infographicUrl: string;
+}
+
 interface Props {
   onBack: () => void;
   industryType: IndustryType;
@@ -50,6 +63,11 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
   const [eventTimerInput, setEventTimerInput] = useState<number>(0);
   const [eventRemaining, setEventRemaining] = useState<number>(0);
   const [roomList, setRoomList] = useState<string[]>([]);
+  const [detailTeam, setDetailTeam] = useState<TeamRow | null>(null);
+  const [detailData, setDetailData] = useState<MissionDataItem[]>([]);
+  const [detailAssets, setDetailAssets] = useState<TeamAsset | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailMonth, setDetailMonth] = useState<number>(1);
 
   // roomId가 설정된 경우에만 데이터 fetch (빈 문자열이면 fetch 안 함)
   const fetchData = useCallback(async () => {
@@ -233,6 +251,40 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
     }, 1000);
     return () => clearInterval(interval);
   }, [activeEventType, eventRemaining > 0, roomId]);
+
+  const openTeamDetail = async (team: TeamRow) => {
+    setDetailTeam(team);
+    setDetailMonth(1);
+    setDetailLoading(true);
+    setDetailData([]);
+    setDetailAssets(null);
+    try {
+      const [dataResult, assetsResult] = await Promise.all([
+        gasService.getMissionData(roomId, team.teamId),
+        gasService.getTeamAssets(roomId, team.teamId),
+      ]);
+      if (dataResult.success && dataResult.data) {
+        const raw = dataResult.data as unknown as MissionDataItem[];
+        setDetailData(Array.isArray(raw) ? raw : []);
+      }
+      if (assetsResult.success && assetsResult.data) {
+        setDetailAssets(assetsResult.data as unknown as TeamAsset);
+      }
+    } catch {
+      // non-critical
+    }
+    setDetailLoading(false);
+  };
+
+  const getDetailForMonth = (month: number): Record<string, unknown> | null => {
+    const item = detailData.find(d => Number(d.month) === month);
+    if (!item || !item.dataJson) return null;
+    try {
+      return JSON.parse(item.dataJson) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  };
 
   // 팀번호 순 정렬 (1팀 → 25팀)
   const sortedTeams = [...teams].sort((a, b) => (a.teamId || 0) - (b.teamId || 0));
@@ -504,9 +556,14 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
                   <h3 className="text-sm font-black text-cl-navy font-mono uppercase tracking-widest">
                     {selectedTeam.teamName || `Team ${selectedTeam.teamId}`} - DETAIL
                   </h3>
-                  <button onClick={() => setSelectedTeam(null)} className="nb-btn px-3 py-1 bg-white text-cl-text text-xs">
-                    &#10005; CLOSE
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={() => openTeamDetail(selectedTeam)} className="nb-btn px-3 py-1 bg-cl-gold text-cl-text text-xs">
+                      &#128269; VIEW DETAIL
+                    </button>
+                    <button onClick={() => setSelectedTeam(null)} className="nb-btn px-3 py-1 bg-white text-cl-text text-xs">
+                      &#10005; CLOSE
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2">
                   {MISSIONS.map(m => {
@@ -700,6 +757,225 @@ export default function AdminDashboard({ onBack, industryType, onIndustryTypeCha
           </div>
         )}
       </div>
+
+      {/* ===== TEAM DETAIL MODAL (1,3,5,7,12월) ===== */}
+      {detailTeam && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 overflow-y-auto">
+          <div className="max-w-3xl mx-auto py-8 px-4">
+            <div className="nb-card p-6 bg-white">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-lg font-black text-cl-navy font-[family-name:var(--font-space)]">
+                  {detailTeam.teamId}팀 {detailTeam.teamName} - 미션 상세
+                </h2>
+                <button onClick={() => setDetailTeam(null)} className="nb-btn px-4 py-1.5 bg-white text-cl-text text-sm">
+                  &#10005; CLOSE
+                </button>
+              </div>
+
+              {/* Month Tabs */}
+              <div className="flex gap-2 mb-5 flex-wrap">
+                {[1, 3, 5, 7, 12].map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setDetailMonth(m)}
+                    className={`nb-btn px-4 py-2 text-sm ${
+                      detailMonth === m ? 'bg-cl-navy text-white' : 'bg-white text-cl-text/60'
+                    }`}
+                  >
+                    {m}월 {MISSIONS[m - 1]?.title}
+                  </button>
+                ))}
+              </div>
+
+              {detailLoading ? (
+                <div className="text-center py-12 text-cl-text/30 font-mono">Loading...</div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 1월: 부임 인사 */}
+                  {detailMonth === 1 && (() => {
+                    const data = getDetailForMonth(1);
+                    if (!data) return <div className="text-center py-8 text-cl-text/30 font-mono text-sm">아직 데이터가 없습니다</div>;
+                    return (
+                      <div className="space-y-3">
+                        <div className="nb-card p-4 bg-cl-bg">
+                          <h4 className="text-xs font-bold text-cl-navy mb-2">&#128221; 부임 인사 내용</h4>
+                          <p className="text-sm text-cl-text/70 leading-relaxed whitespace-pre-line">{String(data.speech || '')}</p>
+                        </div>
+                        <div className="nb-card p-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-xs font-bold text-cl-navy">AI 평가 점수:</span>
+                            <span className="text-xl font-black text-cl-navy font-mono">{String(data.aiScore || '-')}/100</span>
+                          </div>
+                          <p className="text-sm text-cl-text/60 leading-relaxed">{String(data.feedback || '')}</p>
+                        </div>
+                        {Array.isArray(data.strengths) && (data.strengths as string[]).length > 0 && (
+                          <div className="nb-card p-3 bg-cl-green/10 border-cl-green">
+                            <span className="text-xs font-bold text-cl-green">&#128077; 잘한 점</span>
+                            <ul className="text-xs text-cl-text/60 mt-1 space-y-0.5">
+                              {(data.strengths as string[]).map((s, i) => <li key={i}>&bull; {s}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {Array.isArray(data.improvements) && (data.improvements as string[]).length > 0 && (
+                          <div className="nb-card p-3 bg-cl-orange/10 border-cl-orange">
+                            <span className="text-xs font-bold text-cl-orange">&#128736; 개선 포인트</span>
+                            <ul className="text-xs text-cl-text/60 mt-1 space-y-0.5">
+                              {(data.improvements as string[]).map((s, i) => <li key={i}>&bull; {s}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 3월: 1:1 면담 */}
+                  {detailMonth === 3 && (() => {
+                    const data = getDetailForMonth(3);
+                    if (!data) return <div className="text-center py-8 text-cl-text/30 font-mono text-sm">아직 데이터가 없습니다</div>;
+                    const chatHist = Array.isArray(data.chatHistory) ? (data.chatHistory as Array<{ role: string; content: string }>) : [];
+                    return (
+                      <div className="space-y-3">
+                        <div className="nb-card p-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-xs font-bold text-cl-navy">면담 대상:</span>
+                            <span className="nb-badge bg-cl-gold/30 text-cl-text text-xs">{String(data.memberName || '')} ({String(data.memberStyle || '')})</span>
+                            <span className="text-xs font-bold text-cl-navy ml-2">점수:</span>
+                            <span className="text-lg font-black text-cl-navy font-mono">{String(data.finalScore || '-')}/100</span>
+                          </div>
+                          {data.feedbackSummary ? <p className="text-sm text-cl-text/60 leading-relaxed">{String(data.feedbackSummary)}</p> : null}
+                        </div>
+                        {chatHist.length > 0 && (
+                          <details className="nb-card p-4">
+                            <summary className="text-xs font-bold text-cl-navy cursor-pointer">&#128172; 대화 내역 ({chatHist.length}턴)</summary>
+                            <div className="mt-3 space-y-2 max-h-80 overflow-y-auto">
+                              {chatHist.map((msg, i) => (
+                                <div key={i} className={`p-2 rounded-lg text-xs ${msg.role === 'user' ? 'bg-cl-navy/10 text-cl-navy ml-8' : 'bg-gray-100 text-cl-text/70 mr-8'}`}>
+                                  <span className="font-bold text-[10px] block mb-0.5">{msg.role === 'user' ? 'YOU (팀장)' : String(data.memberName || '팀원')}</span>
+                                  {msg.content}
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 5월: 팀빌딩 사진 */}
+                  {detailMonth === 5 && (() => {
+                    const data = getDetailForMonth(5);
+                    const photoUrl = detailAssets?.photoUrl;
+                    if (!data && !photoUrl) return <div className="text-center py-8 text-cl-text/30 font-mono text-sm">아직 데이터가 없습니다</div>;
+                    return (
+                      <div className="space-y-3">
+                        {photoUrl && (
+                          <div className="nb-card p-2">
+                            <img src={photoUrl} alt="팀 하트 사진" className="w-full rounded-lg border-2 border-cl-border" />
+                          </div>
+                        )}
+                        {data && (
+                          <div className="nb-card p-4">
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <span className="text-xs text-cl-text/40">참여 인원</span>
+                                <span className="text-xl font-black text-cl-navy font-mono ml-2">{String(data.participantCount || '-')}명</span>
+                              </div>
+                              <div>
+                                <span className="text-xs text-cl-text/40">AI 점수</span>
+                                <span className="text-xl font-black text-cl-navy font-mono ml-2">{String(data.aiScore || '-')}/100</span>
+                              </div>
+                            </div>
+                            {data.aiMessage ? <p className="text-sm text-cl-text/60 mt-2">{String(data.aiMessage)}</p> : null}
+                          </div>
+                        )}
+                        {!photoUrl && <p className="text-xs text-cl-text/30 text-center">* Drive 업로드 미설정 시 사진이 표시되지 않습니다</p>}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 7월: 퀴즈 결과 */}
+                  {detailMonth === 7 && (() => {
+                    const data = getDetailForMonth(7);
+                    if (!data) return <div className="text-center py-8 text-cl-text/30 font-mono text-sm">아직 데이터가 없습니다</div>;
+                    const quizAnswers = Array.isArray(data.answers) ? (data.answers as Array<{ question: string; selected: string; correct: boolean; correctAnswer: string }>) : [];
+                    return (
+                      <div className="space-y-3">
+                        <div className="nb-card p-4 text-center">
+                          <span className="text-3xl font-black text-cl-navy font-mono">{String(data.correctCount || 0)}</span>
+                          <span className="text-cl-text/40 text-lg">/{String(data.totalQuestions || 20)} 정답</span>
+                        </div>
+                        {quizAnswers.length > 0 && (
+                          <div className="nb-card p-4">
+                            <h4 className="text-xs font-bold text-cl-navy mb-2">문제별 결과</h4>
+                            <div className="space-y-1">
+                              {quizAnswers.map((a, i) => (
+                                <div key={i} className={`flex items-center gap-2 text-xs p-1.5 rounded ${a.correct ? 'bg-cl-green/10' : 'bg-cl-red/10'}`}>
+                                  <span className={`font-bold ${a.correct ? 'text-cl-green' : 'text-cl-red'}`}>{a.correct ? '&#10003;' : '&#10007;'}</span>
+                                  <span className="text-cl-text/60 flex-1 truncate">{a.question}</span>
+                                  <span className="text-[10px] text-cl-text/40">{a.selected}</span>
+                                  {!a.correct && <span className="text-cl-red text-[10px]">({a.correctAnswer})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* 12월: 성과보고서 + 인포그래픽 */}
+                  {detailMonth === 12 && (() => {
+                    const data = getDetailForMonth(12);
+                    const infographicUrl = detailAssets?.infographicUrl;
+                    if (!data && !infographicUrl) return <div className="text-center py-8 text-cl-text/30 font-mono text-sm">아직 데이터가 없습니다</div>;
+                    const report = data?.report as { oneLine?: string; bestMission?: string; regret?: string; futureHelp?: string } | undefined;
+                    return (
+                      <div className="space-y-3">
+                        {data && (
+                          <>
+                            <div className="nb-card p-4">
+                              <span className="text-xs font-bold text-cl-navy">제기차기:</span>
+                              <span className="text-lg font-black text-cl-navy font-mono ml-2">{String(data.jegiCount || '-')}회</span>
+                            </div>
+                            {report && (
+                              <div className="nb-card p-4 space-y-3">
+                                <h4 className="text-xs font-bold text-cl-navy">&#128221; 성과보고서</h4>
+                                <div>
+                                  <span className="text-[10px] text-cl-text/40 block">한줄 소감</span>
+                                  <p className="text-sm text-cl-text/70">{report.oneLine || ''}</p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-cl-text/40 block">리더십이 빛났던 미션</span>
+                                  <p className="text-sm text-cl-text/70">{report.bestMission || ''}</p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-cl-text/40 block">아쉬웠던 점</span>
+                                  <p className="text-sm text-cl-text/70">{report.regret || ''}</p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-cl-text/40 block">현업 도움</span>
+                                  <p className="text-sm text-cl-text/70">{report.futureHelp || ''}</p>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {infographicUrl && (
+                          <div className="nb-card p-2">
+                            <h4 className="text-xs font-bold text-cl-navy mb-2 px-2">&#127912; AI 인포그래픽</h4>
+                            <img src={infographicUrl} alt="팀 인포그래픽" className="w-full rounded-lg border-2 border-cl-border" />
+                          </div>
+                        )}
+                        {!infographicUrl && <p className="text-xs text-cl-text/30 text-center">* Drive 업로드 미설정 시 인포그래픽이 표시되지 않습니다</p>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReport && (
         <FinalResultReport teams={teams as TeamRow[]} roomId={roomId} onClose={() => setShowReport(false)} />
