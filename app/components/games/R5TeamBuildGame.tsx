@@ -31,18 +31,62 @@ export default function R5TeamBuildGame({ onComplete, onBack, startTime, roomId,
   const fileRef = useRef<HTMLInputElement>(null);
   const mission = MISSIONS[4];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File): Promise<{ dataUrl: string; base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const MAX = 1600;
+            let { width, height } = img;
+            if (width > MAX || height > MAX) {
+              if (width >= height) {
+                height = Math.round((height * MAX) / width);
+                width = MAX;
+              } else {
+                width = Math.round((width * MAX) / height);
+                height = MAX;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('no ctx');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            resolve({ dataUrl, base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+          } catch (err) {
+            reject(err);
+          }
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      setPreview(result);
-      const base64 = result.split(',')[1];
-      setImageData({ base64, mimeType: file.type });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const { dataUrl, base64, mimeType } = await compressImage(file);
+      setPreview(dataUrl);
+      setImageData({ base64, mimeType });
+    } catch {
+      // fallback: original
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setPreview(result);
+        setImageData({ base64: result.split(',')[1], mimeType: file.type });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleVerify = async () => {
