@@ -1,10 +1,11 @@
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
+// The real key lives only on the server (app/api/gemini-proxy); keep a placeholder so existing guards pass.
+const GEMINI_API_KEY = 'server-proxy';
 const FLASH_MODEL = 'gemini-3-flash-preview';
 const IMAGE_MODEL = 'gemini-3.1-flash-image-preview';
 const TTS_MODEL = 'gemini-2.5-flash-preview-tts';
 
 async function callGemini(model: string, contents: unknown[], config?: Record<string, unknown>): Promise<unknown> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+  const url = `/api/gemini-proxy/v1beta/models/${model}:generateContent`;
   const body: Record<string, unknown> = { contents };
   if (config) {
     body.generationConfig = config;
@@ -272,7 +273,7 @@ JSON 응답: {"pass":true/false,"message":"검증 결과 메시지"}`;
 
 세련된 네이비/골드 테마의 리더십 인포그래픽을 생성해주세요. 네이비(#1E3A5F)와 골드(#D4A017) 컬러를 사용하고, 한국어 텍스트를 포함해주세요.`;
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+      const url = `/api/gemini-proxy/v1beta/models/${IMAGE_MODEL}:generateContent`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -303,7 +304,7 @@ JSON 응답: {"pass":true/false,"message":"검증 결과 메시지"}`;
 
   speakTTS: async (text: string): Promise<void> => {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${TTS_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+      const url = `/api/gemini-proxy/v1beta/models/${TTS_MODEL}:generateContent`;
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
